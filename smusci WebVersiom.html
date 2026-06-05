@@ -163,13 +163,11 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
 </head>
 <body>
 
-<!-- LOADING -->
 <div id="loader">
   <div class="spin"></div>
-  <div class="load-txt" id="load-msg">ĐANG TẢI DANH SÁCH NHẠC...</div>
+  <div class="load-txt" id="load-msg">ĐANG TẢI DỮ LIỆU TỪ SHEET...</div>
 </div>
 
-<!-- APP -->
 <div id="app">
   <div class="hdr">
     <h1>🎵 SMUSIC PLAYER</h1>
@@ -177,7 +175,6 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
   </div>
 
   <div class="panel">
-    <!-- TABBAR -->
     <div class="tabbar">
       <button class="active" data-tab="control">Điều khiển</button>
       <button data-tab="eq">EQ Thật</button>
@@ -185,7 +182,6 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
       <button data-tab="playlist">Toàn bộ phát nhạc</button>
     </div>
 
-    <!-- TAB 1: ĐIỀU KHIỂN -->
     <div id="tab-control" class="tab on">
       <div class="song-title" id="song-title">Chưa chọn bài hát</div>
 
@@ -206,11 +202,10 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
         <button class="btn"               onclick="nextTrackBtn()">⏭ Next</button>
       </div>
 
-      <div class="sec-lbl">🎵 Hàng đợi phát hiện tại (Theo đúng thứ tự nghe):</div>
+      <div class="sec-lbl">🎵 Hàng đợi phát hiện tại (Lưu tự động siêu tốc):</div>
       <div class="queue-wrap" id="queue-wrap"></div>
     </div>
 
-    <!-- TAB 2: EQ -->
     <div id="tab-eq" class="tab">
       <div class="eq-canvas-box">
         <canvas id="eq-canvas" height="155"></canvas>
@@ -218,7 +213,6 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
       <div class="eq-row" id="eq-row"></div>
     </div>
 
-    <!-- TAB 3: SPECTRUM -->
     <div id="tab-spectrum" class="tab">
       <label class="spec-toggle">
         <input type="checkbox" id="spec-chk" checked onchange="toggleSpectrum(this.checked)">
@@ -227,52 +221,49 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
       <canvas id="spec-canvas" height="210"></canvas>
     </div>
 
-    <!-- TAB 4: PLAYLIST -->
     <div id="tab-playlist" class="tab">
       <div class="pgrid" id="pgrid"></div>
     </div>
-  </div><!-- .panel -->
-</div><!-- #app -->
-
-<audio id="aud" crossorigin="anonymous" preload="none"></audio>
+  </div></div><audio id="aud" crossorigin="anonymous" preload="none"></audio>
 
 <script>
 /* ============================================================
-   CONFIG
+   CONFIG TỐI QUAN TRỌNG: LINK TỚI GOOGLE APPS SCRIPT
    ============================================================ */
-const SHEET_ID   = '1OKbpATr9kqmOeWLjzkoquGdha-oylSpx1cp-h0CwGr8';
-const STORE_KEY  = 'smusic_v3';
+// DÁN URL ỨNG DỤNG WEB MÀ BẠN ĐÃ TRIỂN KHAI Ở PHẦN 1 VÀO ĐÂY !!!
+const WEB_APP_URL = "DÁN_LINK_WEB_APP_CỦA_BẠN_VÀO_ĐÂY";
+
+const STORE_KEY  = 'smusic_v4_storage';
 const EQ_FREQS   = [60, 150, 400, 1000, 2400, 15000];
 const EQ_LABELS  = ['60Hz','150Hz','400Hz','1KHz','2.4KHz','15KHz'];
 const EQ_TYPES   = ['lowshelf','peaking','peaking','peaking','peaking','highshelf'];
 
-// Bài hát có start time đặc biệt (giây)
+// Tua nhanh với bài đặc biệt (Giây)
 const SONG_STARTS = { 'leave me alone': 22, 'broken strings': 30 };
 
 /* ============================================================
-   STATE
+   STATE (TRẠNG THÁI APP)
    ============================================================ */
 let S = {
-  playlist:   [],   // [{name, fileId}]
-  queue:      [],   // tên bài theo thứ tự
+  playlist:   [],   
+  queue:      [],   
   idx:        0,
   random:     true,
   volume:     100,
-  counts:     {},   // {name: số lần nghe}
+  counts:     {},   
   eq:         [0,0,0,0,0,0],
   spectrum:   true,
   savedTime:  0,
 };
 
 /* ============================================================
-   AUDIO ELEMENTS & WEB AUDIO API
+   BIẾN TOÀN CỤC (Âm thanh & API)
    ============================================================ */
 const aud = document.getElementById('aud');
 let actx = null, analyser = null, gainNode = null;
 const eqFilters = [];
 let audReady = false;
 
-// Tracking playback for count logic
 let countAdded    = false;
 let isNextPress   = false;
 let totalSeekMs   = 0;
@@ -280,96 +271,98 @@ let dragging      = false;
 let seekSnapStart = 0;
 
 /* ============================================================
-   STARTUP
+   KHỞI ĐỘNG
    ============================================================ */
 async function init() {
-  loadState();
+  loadStateFromBrowser(); // Đọc playlist/cài đặt dở dang từ LocalStorage
   buildEQSliders();
   hookProgress();
   hookVolume();
   hookTabs();
-  await loadSongList();
+  await fetchFromGoogle(); // Kéo dữ liệu bài hát mới & lượt nghe mới từ Sheet
   applyUI();
   hideLoader();
-  setInterval(saveState, 3000);
+  
+  // Tự động lưu LocalStorage mỗi giây (Không tốn tài nguyên mạng)
+  setInterval(saveStateToBrowser, 1000); 
   setInterval(tickUI, 200);
 }
 
 /* ============================================================
-   PERSIST STATE
+   LƯU TRỮ LOCALSTORAGE (Trơn tru - Nhanh chóng)
    ============================================================ */
-function loadState() {
+function loadStateFromBrowser() {
   try {
     const s = localStorage.getItem(STORE_KEY);
-    if (s) Object.assign(S, JSON.parse(s));
+    if (s) {
+        let parsed = JSON.parse(s);
+        Object.assign(S, parsed);
+    }
   } catch(e) {}
 }
 
-function saveState() {
+function saveStateToBrowser() {
   try {
     if (aud.currentTime > 0) S.savedTime = aud.currentTime;
-    localStorage.setItem(STORE_KEY, JSON.stringify(S));
+    // Không lưu playlist khổng lồ vào LocalStorage để tiết kiệm bộ nhớ, chỉ lưu Queue, Settings, Time, Index
+    const stateToSave = {
+        queue: S.queue,
+        idx: S.idx,
+        random: S.random,
+        volume: S.volume,
+        eq: S.eq,
+        spectrum: S.spectrum,
+        savedTime: S.savedTime
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(stateToSave));
   } catch(e) {}
 }
 
 /* ============================================================
-   GOOGLE SHEETS FETCH
+   KẾT NỐI API GOOGLE (Đọc và Ghi Sheet)
    ============================================================ */
-async function gviz(sheetName) {
-  const u = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
-  const r = await fetch(u);
-  const t = await r.text();
-  const i = t.indexOf('{'), j = t.lastIndexOf('}');
-  if (i < 0 || j < 0) throw new Error('Bad gviz response');
-  return JSON.parse(t.slice(i, j + 1));
-}
+async function fetchFromGoogle() {
+  setStatus('Đang lấy dữ liệu từ Google Sheets...');
+  if (WEB_APP_URL === "DÁN_LINK_WEB_APP_CỦA_BẠN_VÀO_ĐÂY" || !WEB_APP_URL.startsWith("https")) {
+      alert("LỖI: Bạn chưa dán Link Google Apps Script vào code!");
+      setStatus('⚠️ Thiếu Link Apps Script');
+      return;
+  }
 
-async function loadSongList() {
-  setStatus('Đang kết nối Google Sheets...');
-  setLoadMsg('ĐANG TẢI DANH SÁCH NHẠC...');
   try {
-    const d = await gviz('Sheet1');
-    const rows = d?.table?.rows || [];
-    const songs = [];
-    for (const row of rows) {
-      if (!row.c || row.c.length < 2) continue;
-      const nv = row.c[0]?.v, iv = row.c[1]?.v;
-      if (!nv || !iv) continue;
-      const name   = String(nv).trim();
-      const fileId = toFileId(String(iv).trim());
-      if (name && fileId) songs.push({ name, fileId });
-    }
-    if (!songs.length) throw new Error('Sheet1 không có dữ liệu hợp lệ');
+    const res = await fetch(WEB_APP_URL);
+    const data = await res.json();
 
-    S.playlist = songs;
+    if (!data.songs || data.songs.length === 0) throw new Error('Sheet không có dữ liệu bài hát');
 
-    // Đọc lượt nghe từ Sheet2 (nếu có)
-    try {
-      const d2 = await gviz('Sheet2');
-      for (const row of (d2?.table?.rows || [])) {
-        if (!row.c || row.c.length < 2) continue;
-        const n = row.c[0]?.v, c = row.c[1]?.v;
-        if (n && c != null) S.counts[String(n).trim()] = Number(c) || 0;
-      }
-    } catch(e) { /* Sheet2 tuỳ chọn */ }
+    S.playlist = data.songs;
+    S.counts = data.counts || {}; // Cập nhật số liệu chuẩn từ máy chủ
 
-    setStatus(`✅ Đã tải ${songs.length} bài hát`);
+    setStatus(`✅ Đã đồng bộ ${S.playlist.length} bài hát`);
     buildInitialQueue();
     renderGrid();
   } catch(err) {
     console.error(err);
-    setStatus('⚠️ Lỗi tải nhạc - kiểm tra Google Sheet');
-    document.getElementById('pgrid').innerHTML =
-      `<div class="ebox" style="grid-column:1/-1">
-        ⚠️ <strong>Không thể tải danh sách bài hát.</strong><br>
-        Đảm bảo Google Sheet chia sẻ <em>"Anyone with link can view"</em>.<br>
-        Sheet1 cần có: Cột A = Tên bài, Cột B = Google Drive File ID.
-      </div>`;
+    setStatus('⚠️ Lỗi tải nhạc - Kiểm tra kết nối mạng hoặc link API');
+  }
+}
+
+// Gửi lệnh lên Google Sheet để tăng số lần nghe
+async function pushCountToGoogle(songName) {
+  try {
+    await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: "updateCount", songName: songName }),
+      headers: { "Content-Type": "text/plain;charset=utf-8" } // Dùng text/plain để tránh lỗi CORS của Google
+    });
+    console.log("Đã cập nhật lượt nghe cho:", songName);
+  } catch (error) {
+    console.warn("Lỗi đồng bộ lượt nghe lên server", error);
   }
 }
 
 function toFileId(s) {
-  if (!s.includes('/') && !s.includes('=')) return s;   // Đã là file ID
+  if (!s.includes('/') && !s.includes('=')) return s;
   let m = s.match(/\/d\/([a-zA-Z0-9_-]{15,})/);
   if (m) return m[1];
   m = s.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
@@ -383,23 +376,25 @@ function driveUrl(fileId) {
 }
 
 /* ============================================================
-   QUEUE
+   QUẢN LÝ HÀNG ĐỢI (QUEUE & RANDOM)
    ============================================================ */
 function buildInitialQueue() {
   const pl = S.playlist.map(s => s.name);
+  // Nếu có queue lưu trước đó, kiểm tra xem bài có bị xóa khỏi sheet không
   if (S.queue.length > 0) {
     const valid = S.queue.filter(n => pl.includes(n));
     if (valid.length) {
       S.queue = valid;
       if (S.idx >= S.queue.length) S.idx = 0;
       renderQueue();
-      return;
+      return; // Giữ nguyên queue và lịch sử cũ
     }
   }
+  // Nếu chưa có queue hoặc lỗi, tạo mới hoàn toàn
   S.queue = [...pl];
   if (S.random) fisherYates(S.queue);
   S.idx = 0;
-  saveState();
+  saveStateToBrowser();
   renderQueue();
 }
 
@@ -411,11 +406,12 @@ function fisherYates(arr) {
 }
 
 /* ============================================================
-   PLAYBACK
+   CỐT LÕI PHÁT NHẠC
    ============================================================ */
 function getSong(name) { return S.playlist.find(s => s.name === name); }
 
-function playTrack(qIdx, startSec = -1) {
+// Hàm phát nhạc, nếu isResume=true thì tua lại đoạn đang nghe dở
+function playTrack(qIdx, isResume = false) {
   countAdded = false; isNextPress = false; totalSeekMs = 0;
   S.idx = qIdx;
   const name = S.queue[qIdx];
@@ -423,24 +419,29 @@ function playTrack(qIdx, startSec = -1) {
   if (!song) return;
 
   ensureAudioCtx();
-  aud.src = driveUrl(song.fileId);
+  aud.src = driveUrl(toFileId(song.fileId));
   aud.load();
   aud.play().catch(e => {
     console.warn('Play error:', e);
-    setStatus('⚠️ Không phát được - kiểm tra File ID và quyền chia sẻ trên Drive');
+    setStatus('⚠️ Chặn Tự Động Phát - Hãy bấm nút Play để nghe!');
   });
 
-  // Custom start time
-  let st = startSec >= 0 ? startSec : 0;
-  if (st === 0) {
-    const low = name.toLowerCase();
-    for (const [k, v] of Object.entries(SONG_STARTS)) {
-      if (low.includes(k)) { st = v; break; }
-    }
+  // Xử lý Tua thời gian
+  let targetTime = 0;
+  
+  if (isResume && S.savedTime > 0) {
+      targetTime = S.savedTime; // Ưu tiên tua lại đoạn nghe dở trước
+  } else {
+      // Nếu là phát bài mới hoàn toàn, check xem có thuộc diện tua 22s, 30s không
+      const lowName = name.toLowerCase();
+      for (const [key, val] of Object.entries(SONG_STARTS)) {
+        if (lowName.includes(key)) { targetTime = val; break; }
+      }
   }
-  if (st > 0) {
+
+  if (targetTime > 0) {
     aud.addEventListener('canplay', function h() {
-      aud.currentTime = st;
+      aud.currentTime = targetTime;
       aud.removeEventListener('canplay', h);
     }, { once: true });
   }
@@ -448,23 +449,21 @@ function playTrack(qIdx, startSec = -1) {
   setTitle(name);
   renderQueue();
   renderGrid();
-  saveState();
+  saveStateToBrowser();
 }
 
 function togglePlay() {
   ensureAudioCtx();
   if (aud.paused) {
     if (!aud.src || aud.src === location.href) {
-      const song = getSong(S.queue[S.idx]);
-      if (!song) return;
-      aud.src = driveUrl(song.fileId);
-      aud.currentTime = S.savedTime || 0;
-      aud.load();
+      // Bấm play lần đầu tiên khi mở app
+      playTrack(S.idx, true); 
+    } else {
+      aud.play().catch(e => console.warn(e));
     }
-    aud.play().catch(e => console.warn(e));
   } else {
     aud.pause();
-    saveState();
+    saveStateToBrowser();
   }
 }
 
@@ -472,37 +471,45 @@ function nextTrackBtn() { isNextPress = true; nextTrack(); }
 
 function nextTrack() {
   if (!S.queue.length) return;
-  const last = S.queue[S.idx];
+  const lastSong = S.queue[S.idx];
   S.idx++;
+  S.savedTime = 0; // Xóa mốc thời gian cũ khi chuyển bài mới
+  
+  // Hết playlist -> Xáo trộn bài và tạo vòng lặp mới
   if (S.idx >= S.queue.length) {
     if (S.random && S.playlist.length > 1) {
       let tries = 0;
       do { fisherYates(S.queue); tries++; }
-      while (S.queue[0] === last && tries < 8);
+      while (S.queue[0] === lastSong && tries < 8);
       S.idx = 0;
     } else {
       S.idx = 0;
     }
-    saveState();
+    saveStateToBrowser();
   }
-  playTrack(S.idx);
+  playTrack(S.idx, false);
 }
 
 function toggleMode() {
   S.random = !S.random;
-  const cur = S.queue[S.idx];
+  const currentSong = S.queue[S.idx];
   S.queue = S.playlist.map(s => s.name);
   if (S.random) fisherYates(S.queue);
-  const ci = S.queue.indexOf(cur);
-  if (ci !== -1) { S.queue.splice(ci, 1); S.queue.unshift(cur); S.idx = 0; }
-  document.getElementById('btn-mode').textContent =
-    S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
+  
+  const ci = S.queue.indexOf(currentSong);
+  if (ci !== -1) { 
+      S.queue.splice(ci, 1); 
+      S.queue.unshift(currentSong); 
+      S.idx = 0; 
+  }
+  
+  document.getElementById('btn-mode').textContent = S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
   renderQueue();
-  saveState();
+  saveStateToBrowser();
 }
 
 /* ============================================================
-   AUDIO EVENTS
+   SỰ KIỆN AUDIO & TÍNH SỐ LẦN NGHE
    ============================================================ */
 aud.addEventListener('ended', nextTrack);
 
@@ -510,26 +517,29 @@ aud.addEventListener('timeupdate', () => {
   if (dragging || !aud.duration) return;
   const pct = aud.currentTime / aud.duration;
   document.getElementById('progress').value = Math.round(pct * 1000);
-  document.getElementById('time-lbl').textContent =
-    fmt(aud.currentTime) + ' / ' + fmt(aud.duration);
+  document.getElementById('time-lbl').textContent = fmt(aud.currentTime) + ' / ' + fmt(aud.duration);
 
-  // Play count: 90% nghe, ít seek, không bấm next
+  // Logic ghi nhận lượt nghe: Nghe qua 90%, không tua bậy, không skip
   if (!countAdded && pct >= 0.9 && totalSeekMs <= 10000 && !isNextPress) {
-    const n = S.queue[S.idx];
-    S.counts[n] = (S.counts[n] || 0) + 1;
+    const songName = S.queue[S.idx];
+    
+    // 1. Cập nhật giao diện mượt ngay lập tức
+    S.counts[songName] = (S.counts[songName] || 0) + 1;
     countAdded = true;
     renderQueue();
     renderGrid();
-    saveState();
+    
+    // 2. Gửi dữ liệu chìm lên máy chủ Google để lưu trữ vĩnh viễn
+    pushCountToGoogle(songName);
   }
 });
 
 aud.addEventListener('error', () => {
-  setStatus('⚠️ Lỗi phát nhạc - File Drive có thể chưa public');
+  setStatus('⚠️ Lỗi phát nhạc - File Drive có thể bị giới hạn băng thông');
 });
 
 /* ============================================================
-   PROGRESS SLIDER
+   THANH ĐIỀU KHIỂN THỜI GIAN & ÂM LƯỢNG
    ============================================================ */
 function hookProgress() {
   const sl = document.getElementById('progress');
@@ -542,13 +552,10 @@ function hookProgress() {
     aud.currentTime = t;
     seekSnapStart = t;
     dragging = false;
-    saveState();
+    saveStateToBrowser();
   });
 }
 
-/* ============================================================
-   VOLUME SLIDER
-   ============================================================ */
 function hookVolume() {
   const sl = document.getElementById('vol-sl');
   sl.value = S.volume;
@@ -558,12 +565,12 @@ function hookVolume() {
     document.getElementById('vol-lbl').textContent = S.volume + '%';
     aud.volume = S.volume / 100;
     if (gainNode) gainNode.gain.value = S.volume / 100;
-    saveState();
+    saveStateToBrowser();
   });
 }
 
 /* ============================================================
-   WEB AUDIO API
+   XỬ LÝ WEB AUDIO API (EQ & SPECTRUM)
    ============================================================ */
 function ensureAudioCtx() {
   if (audReady) {
@@ -599,9 +606,6 @@ function ensureAudioCtx() {
   if (S.spectrum) startSpec();
 }
 
-/* ============================================================
-   EQ
-   ============================================================ */
 function buildEQSliders() {
   const row = document.getElementById('eq-row');
   row.innerHTML = '';
@@ -627,7 +631,7 @@ function buildEQSliders() {
       db.textContent = fmtDb(S.eq[idx]);
       if (eqFilters[idx]) eqFilters[idx].gain.value = S.eq[idx];
       drawEQ();
-      saveState();
+      saveStateToBrowser();
     });
 
     const lbl = document.createElement('div');
@@ -657,7 +661,6 @@ function drawEQ() {
   ctx.fillStyle = '#1e2a35';
   ctx.fillRect(0, 0, W, H);
 
-  // Grid
   for (let db = -12; db <= 12; db += 3) {
     const y = H/2 - (db/12) * (H/2 - 14);
     ctx.strokeStyle = db === 0 ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.07)';
@@ -669,7 +672,6 @@ function drawEQ() {
       ctx.fillText(db+'dB', 4, y - 2);
     }
   }
-  // Freq lines
   for (let i = 0; i < 6; i++) {
     const x = ((i + .5) / 6) * W;
     ctx.strokeStyle = 'rgba(255,255,255,.06)';
@@ -677,12 +679,10 @@ function drawEQ() {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
   }
 
-  // Curve (Catmull-Rom)
   const pts = [];
   for (let i = 0; i < 6; i++) {
     pts.push({ x: ((i+.5)/6)*W, y: H/2 - (S.eq[i]/12)*(H/2-14) });
   }
-  // Gradient fill
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, 'rgba(66,147,245,.35)');
   grad.addColorStop(1, 'rgba(66,147,245,.04)');
@@ -701,7 +701,6 @@ function drawEQ() {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Stroke
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 0; i < pts.length - 1; i++) {
@@ -715,14 +714,12 @@ function drawEQ() {
   ctx.shadowBlur = 10; ctx.shadowColor = '#4293f5';
   ctx.stroke(); ctx.shadowBlur = 0;
 
-  // Nodes
   for (const p of pts) {
     ctx.beginPath(); ctx.arc(p.x, p.y, 5.5, 0, Math.PI*2);
     ctx.fillStyle = '#7db9ff'; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  // Freq labels
   ctx.fillStyle = 'rgba(255,255,255,.35)';
   ctx.font = '10.5px Exo 2,sans-serif';
   for (let i = 0; i < 6; i++) {
@@ -730,9 +727,6 @@ function drawEQ() {
   }
 }
 
-/* ============================================================
-   SPECTRUM
-   ============================================================ */
 let specRaf = null;
 let specW = 0, specH = 0;
 
@@ -756,7 +750,6 @@ function startSpec() {
     const bw = W / BARS;
 
     if (!analyser) {
-      // Tampilan diam
       for (let i = 0; i < BARS; i++) {
         ctx.fillStyle = 'rgba(66,147,245,.2)';
         ctx.fillRect(i*bw+1, H-3, bw-2, 3);
@@ -810,15 +803,14 @@ function stopSpec() {
 function toggleSpectrum(on) {
   S.spectrum = on;
   if (on) startSpec(); else stopSpec();
-  saveState();
+  saveStateToBrowser();
 }
 
 /* ============================================================
-   RENDER UI
+   CẬP NHẬT GIAO DIỆN
    ============================================================ */
 function setTitle(name) {
-  document.getElementById('song-title').innerHTML =
-    `<span class="dot"></span>${name}`;
+  document.getElementById('song-title').innerHTML = `<span class="dot"></span>${name}`;
 }
 
 function renderQueue() {
@@ -833,7 +825,7 @@ function renderQueue() {
       `<span class="qname">${n}</span>` +
       `<span class="qcnt">🎧 x${cnt}</span>`;
     const ci = i;
-    d.addEventListener('dblclick', () => playTrack(ci));
+    d.addEventListener('dblclick', () => { S.savedTime = 0; playTrack(ci, false); });
     el.appendChild(d);
   }
   const playing = el.querySelector('.now');
@@ -857,8 +849,9 @@ function renderGrid() {
     const nm = song.name;
     d.addEventListener('dblclick', () => {
       const qi = S.queue.indexOf(nm);
-      if (qi !== -1) playTrack(qi);
-      else { S.queue.splice(S.idx, 0, nm); playTrack(S.idx); }
+      S.savedTime = 0; // Click từ danh sách luôn chạy từ đầu
+      if (qi !== -1) playTrack(qi, false);
+      else { S.queue.splice(S.idx, 0, nm); playTrack(S.idx, false); }
     });
     g.appendChild(d);
   }
@@ -867,8 +860,7 @@ function renderGrid() {
 function applyUI() {
   document.getElementById('vol-sl').value = S.volume;
   document.getElementById('vol-lbl').textContent = S.volume + '%';
-  document.getElementById('btn-mode').textContent =
-    S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
+  document.getElementById('btn-mode').textContent = S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
   document.getElementById('spec-chk').checked = S.spectrum;
   applyEQToFilters();
   drawEQ();
@@ -876,21 +868,15 @@ function applyUI() {
   renderGrid();
   if (S.spectrum) setTimeout(startSpec, 400);
 
-  // Restore song title
+  // Khôi phục tên bài đang nghe dở
   if (S.queue[S.idx]) setTitle(S.queue[S.idx]);
 }
 
-/* ============================================================
-   UI TICK (200ms)
-   ============================================================ */
 function tickUI() {
   const btnPlay = document.getElementById('btn-play');
   btnPlay.textContent = aud.paused ? '▶ Phát / Tạm dừng' : '⏸ Tạm dừng';
 }
 
-/* ============================================================
-   TABS
-   ============================================================ */
 function hookTabs() {
   const tabs = ['control','eq','spectrum','playlist'];
   document.querySelectorAll('.tabbar button').forEach((btn, i) => {
@@ -905,9 +891,6 @@ function hookTabs() {
   });
 }
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
 function fmt(sec) {
   if (!sec || isNaN(sec)) return '00:00';
   sec = Math.max(0, Math.floor(sec));
@@ -922,9 +905,7 @@ function hideLoader()    { document.getElementById('loader').style.display = 'no
 
 window.addEventListener('resize', () => { drawEQ(); });
 
-/* ============================================================
-   START
-   ============================================================ */
+// Khởi chạy App
 init();
 </script>
 </body>
