@@ -230,7 +230,7 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
 /* ============================================================
    CONFIG TỐI QUAN TRỌNG: LINK TỚI GOOGLE APPS SCRIPT
    ============================================================ */
-// DÁN URL ỨNG DỤNG WEB MÀ BẠN ĐÃ TRIỂN KHAI Ở PHẦN 1 VÀO ĐÂY !!!
+// SỬA URL ỨNG DỤNG WEB CỦA BẠN VÀO ĐÂY !!!
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzIAqTZI88LCBTXlGNUp-WTyRA7ZiWbcK7V58flZnC25DI7J2VYT4k5NBj94YfELge-og/exec";
 
 const STORE_KEY  = 'smusic_v4_storage';
@@ -274,16 +274,15 @@ let seekSnapStart = 0;
    KHỞI ĐỘNG
    ============================================================ */
 async function init() {
-  loadStateFromBrowser(); // Đọc playlist/cài đặt dở dang từ LocalStorage
+  loadStateFromBrowser(); 
   buildEQSliders();
   hookProgress();
   hookVolume();
   hookTabs();
-  await fetchFromGoogle(); // Kéo dữ liệu bài hát mới & lượt nghe mới từ Sheet
+  await fetchFromGoogle(); 
   applyUI();
   hideLoader();
   
-  // Tự động lưu LocalStorage mỗi giây (Không tốn tài nguyên mạng)
   setInterval(saveStateToBrowser, 1000); 
   setInterval(tickUI, 200);
 }
@@ -304,7 +303,6 @@ function loadStateFromBrowser() {
 function saveStateToBrowser() {
   try {
     if (aud.currentTime > 0) S.savedTime = aud.currentTime;
-    // Không lưu playlist khổng lồ vào LocalStorage để tiết kiệm bộ nhớ, chỉ lưu Queue, Settings, Time, Index
     const stateToSave = {
         queue: S.queue,
         idx: S.idx,
@@ -336,7 +334,7 @@ async function fetchFromGoogle() {
     if (!data.songs || data.songs.length === 0) throw new Error('Sheet không có dữ liệu bài hát');
 
     S.playlist = data.songs;
-    S.counts = data.counts || {}; // Cập nhật số liệu chuẩn từ máy chủ
+    S.counts = data.counts || {}; 
 
     setStatus(`✅ Đã đồng bộ ${S.playlist.length} bài hát`);
     buildInitialQueue();
@@ -347,13 +345,12 @@ async function fetchFromGoogle() {
   }
 }
 
-// Gửi lệnh lên Google Sheet để tăng số lần nghe
 async function pushCountToGoogle(songName) {
   try {
     await fetch(WEB_APP_URL, {
       method: 'POST',
       body: JSON.stringify({ action: "updateCount", songName: songName }),
-      headers: { "Content-Type": "text/plain;charset=utf-8" } // Dùng text/plain để tránh lỗi CORS của Google
+      headers: { "Content-Type": "text/plain;charset=utf-8" } 
     });
     console.log("Đã cập nhật lượt nghe cho:", songName);
   } catch (error) {
@@ -361,36 +358,20 @@ async function pushCountToGoogle(songName) {
   }
 }
 
-function toFileId(s) {
-  if (!s.includes('/') && !s.includes('=')) return s;
-  let m = s.match(/\/d\/([a-zA-Z0-9_-]{15,})/);
-  if (m) return m[1];
-  m = s.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
-  if (m) return m[1];
-  m = s.match(/([a-zA-Z0-9_-]{25,})/);
-  return m ? m[1] : s;
-}
-
-function driveUrl(fileId) {
-  return `https://drive.google.com/uc?export=download&id=${fileId}`;
-}
-
 /* ============================================================
    QUẢN LÝ HÀNG ĐỢI (QUEUE & RANDOM)
    ============================================================ */
 function buildInitialQueue() {
   const pl = S.playlist.map(s => s.name);
-  // Nếu có queue lưu trước đó, kiểm tra xem bài có bị xóa khỏi sheet không
   if (S.queue.length > 0) {
     const valid = S.queue.filter(n => pl.includes(n));
     if (valid.length) {
       S.queue = valid;
       if (S.idx >= S.queue.length) S.idx = 0;
       renderQueue();
-      return; // Giữ nguyên queue và lịch sử cũ
+      return; 
     }
   }
-  // Nếu chưa có queue hoặc lỗi, tạo mới hoàn toàn
   S.queue = [...pl];
   if (S.random) fisherYates(S.queue);
   S.idx = 0;
@@ -410,7 +391,7 @@ function fisherYates(arr) {
    ============================================================ */
 function getSong(name) { return S.playlist.find(s => s.name === name); }
 
-// Hàm phát nhạc, nếu isResume=true thì tua lại đoạn đang nghe dở
+// Hàm phát nhạc đã được tối ưu đọc trực tiếp URL
 function playTrack(qIdx, isResume = false) {
   countAdded = false; isNextPress = false; totalSeekMs = 0;
   S.idx = qIdx;
@@ -419,20 +400,21 @@ function playTrack(qIdx, isResume = false) {
   if (!song) return;
 
   ensureAudioCtx();
-  aud.src = driveUrl(toFileId(song.fileId));
+  
+  // NẠP TRỰC TIẾP URL TỪ SHEET (Hỗ trợ nhiều tên biến đề phòng đổi code Server)
+  aud.src = song.url || song.fileId || song.link; 
+  
   aud.load();
   aud.play().catch(e => {
     console.warn('Play error:', e);
     setStatus('⚠️ Chặn Tự Động Phát - Hãy bấm nút Play để nghe!');
   });
 
-  // Xử lý Tua thời gian
   let targetTime = 0;
   
   if (isResume && S.savedTime > 0) {
-      targetTime = S.savedTime; // Ưu tiên tua lại đoạn nghe dở trước
+      targetTime = S.savedTime;
   } else {
-      // Nếu là phát bài mới hoàn toàn, check xem có thuộc diện tua 22s, 30s không
       const lowName = name.toLowerCase();
       for (const [key, val] of Object.entries(SONG_STARTS)) {
         if (lowName.includes(key)) { targetTime = val; break; }
@@ -456,7 +438,6 @@ function togglePlay() {
   ensureAudioCtx();
   if (aud.paused) {
     if (!aud.src || aud.src === location.href) {
-      // Bấm play lần đầu tiên khi mở app
       playTrack(S.idx, true); 
     } else {
       aud.play().catch(e => console.warn(e));
@@ -473,9 +454,8 @@ function nextTrack() {
   if (!S.queue.length) return;
   const lastSong = S.queue[S.idx];
   S.idx++;
-  S.savedTime = 0; // Xóa mốc thời gian cũ khi chuyển bài mới
+  S.savedTime = 0; 
   
-  // Hết playlist -> Xáo trộn bài và tạo vòng lặp mới
   if (S.idx >= S.queue.length) {
     if (S.random && S.playlist.length > 1) {
       let tries = 0;
@@ -519,17 +499,12 @@ aud.addEventListener('timeupdate', () => {
   document.getElementById('progress').value = Math.round(pct * 1000);
   document.getElementById('time-lbl').textContent = fmt(aud.currentTime) + ' / ' + fmt(aud.duration);
 
-  // Logic ghi nhận lượt nghe: Nghe qua 90%, không tua bậy, không skip
   if (!countAdded && pct >= 0.9 && totalSeekMs <= 10000 && !isNextPress) {
     const songName = S.queue[S.idx];
-    
-    // 1. Cập nhật giao diện mượt ngay lập tức
     S.counts[songName] = (S.counts[songName] || 0) + 1;
     countAdded = true;
     renderQueue();
     renderGrid();
-    
-    // 2. Gửi dữ liệu chìm lên máy chủ Google để lưu trữ vĩnh viễn
     pushCountToGoogle(songName);
   }
 });
@@ -849,7 +824,7 @@ function renderGrid() {
     const nm = song.name;
     d.addEventListener('dblclick', () => {
       const qi = S.queue.indexOf(nm);
-      S.savedTime = 0; // Click từ danh sách luôn chạy từ đầu
+      S.savedTime = 0; 
       if (qi !== -1) playTrack(qi, false);
       else { S.queue.splice(S.idx, 0, nm); playTrack(S.idx, false); }
     });
@@ -868,7 +843,6 @@ function applyUI() {
   renderGrid();
   if (S.spectrum) setTimeout(startSpec, 400);
 
-  // Khôi phục tên bài đang nghe dở
   if (S.queue[S.idx]) setTitle(S.queue[S.idx]);
 }
 
