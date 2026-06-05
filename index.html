@@ -224,13 +224,15 @@ input[type=range]::-moz-range-thumb{width:19px;height:19px;background:var(--blue
     <div id="tab-playlist" class="tab">
       <div class="pgrid" id="pgrid"></div>
     </div>
-  </div></div><audio id="aud" crossorigin="anonymous" preload="none"></audio>
+  </div>
+</div>
+
+<audio id="aud" crossorigin="anonymous" preload="none"></audio>
 
 <script>
 /* ============================================================
-   CONFIG TỐI QUAN TRỌNG: LINK TỚI GOOGLE APPS SCRIPT
+   CONFIG - LINK TỚI GOOGLE APPS SCRIPT
    ============================================================ */
-// SỬA URL ỨNG DỤNG WEB CỦA BẠN VÀO ĐÂY !!!
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxDZUlW4Olfb2Aio6ccwpCw-ASieAq8NNgKC0IYBg1-S-_gpcZct3oVPZ5RXlKLTqORXg/exec";
 
 const STORE_KEY  = 'smusic_v4_storage';
@@ -242,22 +244,22 @@ const EQ_TYPES   = ['lowshelf','peaking','peaking','peaking','peaking','highshel
 const SONG_STARTS = { 'leave me alone': 22, 'broken strings': 30 };
 
 /* ============================================================
-   STATE (TRẠNG THÁI APP)
+   STATE
    ============================================================ */
 let S = {
-  playlist:   [],   
-  queue:      [],   
+  playlist:   [],
+  queue:      [],
   idx:        0,
   random:     true,
   volume:     100,
-  counts:     {},   
+  counts:     {},
   eq:         [0,0,0,0,0,0],
   spectrum:   true,
   savedTime:  0,
 };
 
 /* ============================================================
-   BIẾN TOÀN CỤC (Âm thanh & API)
+   BIẾN TOÀN CỤC
    ============================================================ */
 const aud = document.getElementById('aud');
 let actx = null, analyser = null, gainNode = null;
@@ -274,29 +276,26 @@ let seekSnapStart = 0;
    KHỞI ĐỘNG
    ============================================================ */
 async function init() {
-  loadStateFromBrowser(); 
+  loadStateFromBrowser();
   buildEQSliders();
   hookProgress();
   hookVolume();
   hookTabs();
-  await fetchFromGoogle(); 
+  await fetchFromGoogle();
   applyUI();
   hideLoader();
-  
-  setInterval(saveStateToBrowser, 1000); 
+
+  setInterval(saveStateToBrowser, 1000);
   setInterval(tickUI, 200);
 }
 
 /* ============================================================
-   LƯU TRỮ LOCALSTORAGE (Trơn tru - Nhanh chóng)
+   LƯU TRỮ LOCALSTORAGE
    ============================================================ */
 function loadStateFromBrowser() {
   try {
     const s = localStorage.getItem(STORE_KEY);
-    if (s) {
-        let parsed = JSON.parse(s);
-        Object.assign(S, parsed);
-    }
+    if (s) Object.assign(S, JSON.parse(s));
   } catch(e) {}
 }
 
@@ -304,44 +303,70 @@ function saveStateToBrowser() {
   try {
     if (aud.currentTime > 0) S.savedTime = aud.currentTime;
     const stateToSave = {
-        queue: S.queue,
-        idx: S.idx,
-        random: S.random,
-        volume: S.volume,
-        eq: S.eq,
-        spectrum: S.spectrum,
-        savedTime: S.savedTime
+      queue: S.queue, idx: S.idx, random: S.random,
+      volume: S.volume, eq: S.eq, spectrum: S.spectrum, savedTime: S.savedTime
     };
     localStorage.setItem(STORE_KEY, JSON.stringify(stateToSave));
   } catch(e) {}
 }
 
 /* ============================================================
-   KẾT NỐI API GOOGLE (Đọc và Ghi Sheet)
+   KẾT NỐI API GOOGLE
    ============================================================ */
 async function fetchFromGoogle() {
   setStatus('Đang lấy dữ liệu từ Google Sheets...');
-  if (WEB_APP_URL === "DÁN_LINK_WEB_APP_CỦA_BẠN_VÀO_ĐÂY" || !WEB_APP_URL.startsWith("https")) {
-      alert("LỖI: Bạn chưa dán Link Google Apps Script vào code!");
-      setStatus('⚠️ Thiếu Link Apps Script');
-      return;
+
+  if (!WEB_APP_URL || !WEB_APP_URL.startsWith('https://script.google.com')) {
+    setStatus('⚠️ Thiếu Link Apps Script hợp lệ');
+    return;
   }
 
   try {
-    const res = await fetch(WEB_APP_URL);
+    const res  = await fetch(WEB_APP_URL);
     const data = await res.json();
 
-    if (!data.songs || data.songs.length === 0) throw new Error('Sheet không có dữ liệu bài hát');
+    // ── DEBUG: In dữ liệu thô ra console để kiểm tra ──
+    console.log('[SMusic] Dữ liệu trả về từ Apps Script:', data);
+    if (data.songs && data.songs.length > 0) {
+      console.log('[SMusic] Mẫu bài hát đầu tiên:', JSON.stringify(data.songs[0]));
+    }
 
-    S.playlist = data.songs;
-    S.counts = data.counts || {}; 
+    if (!data.songs || !Array.isArray(data.songs) || data.songs.length === 0) {
+      throw new Error('Apps Script không trả về danh sách bài hát hợp lệ');
+    }
+
+    // ── LỌC: Chỉ nhận bài có đủ name và url ──
+    const validSongs = data.songs.filter(s => {
+      if (!s.name || !s.url) {
+        console.warn('[SMusic] Bỏ qua bài thiếu name/url:', JSON.stringify(s));
+        return false;
+      }
+      return true;
+    });
+
+    if (validSongs.length === 0) {
+      throw new Error(
+        'Tất cả bài hát đều thiếu thuộc tính "url". ' +
+        'Kiểm tra lại Google Apps Script — xem hướng dẫn trong Code.gs!'
+      );
+    }
+
+    if (validSongs.length < data.songs.length) {
+      console.warn(
+        `[SMusic] ${data.songs.length - validSongs.length} bài bị bỏ qua do thiếu url`
+      );
+    }
+
+    S.playlist = validSongs;
+    S.counts   = data.counts || {};
 
     setStatus(`✅ Đã đồng bộ ${S.playlist.length} bài hát`);
     buildInitialQueue();
     renderGrid();
+
   } catch(err) {
-    console.error(err);
-    setStatus('⚠️ Lỗi tải nhạc - Kiểm tra kết nối mạng hoặc link API');
+    console.error('[SMusic] Lỗi fetchFromGoogle:', err);
+    setStatus('⚠️ ' + err.message + ' — Mở DevTools (F12) xem chi tiết');
   }
 }
 
@@ -349,17 +374,16 @@ async function pushCountToGoogle(songName) {
   try {
     await fetch(WEB_APP_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: "updateCount", songName: songName }),
-      headers: { "Content-Type": "text/plain;charset=utf-8" } 
+      body: JSON.stringify({ action: 'updateCount', songName }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
     });
-    console.log("Đã cập nhật lượt nghe cho:", songName);
-  } catch (error) {
-    console.warn("Lỗi đồng bộ lượt nghe lên server", error);
+  } catch(err) {
+    console.warn('[SMusic] Lỗi đồng bộ lượt nghe:', err);
   }
 }
 
 /* ============================================================
-   QUẢN LÝ HÀNG ĐỢI (QUEUE & RANDOM)
+   QUẢN LÝ HÀNG ĐỢI
    ============================================================ */
 function buildInitialQueue() {
   const pl = S.playlist.map(s => s.name);
@@ -369,7 +393,7 @@ function buildInitialQueue() {
       S.queue = valid;
       if (S.idx >= S.queue.length) S.idx = 0;
       renderQueue();
-      return; 
+      return;
     }
   }
   S.queue = [...pl];
@@ -389,36 +413,60 @@ function fisherYates(arr) {
 /* ============================================================
    CỐT LÕI PHÁT NHẠC
    ============================================================ */
-function getSong(name) { return S.playlist.find(s => s.name === name); }
 
-// Hàm phát nhạc đã được tối ưu đọc trực tiếp URL
+// ── FIX: getSong với trim để tránh lỗi khoảng trắng ──
+function getSong(name) {
+  if (!name) return null;
+  const trimmed = name.trim();
+  return S.playlist.find(s => s.name && s.name.trim() === trimmed) || null;
+}
+
+// ── FIX: playTrack đọc trực tiếp song.url, có validation rõ ràng ──
 function playTrack(qIdx, isResume = false) {
   countAdded = false; isNextPress = false; totalSeekMs = 0;
   S.idx = qIdx;
+
   const name = S.queue[qIdx];
+  if (!name) {
+    console.error('[SMusic] Không có bài hát tại index:', qIdx);
+    return;
+  }
+
   const song = getSong(name);
-  if (!song) return;
+  if (!song) {
+    console.error('[SMusic] Không tìm thấy trong playlist:', name);
+    setStatus('⚠️ Không tìm thấy bài: ' + name);
+    return;
+  }
+
+  // ── KIỂM TRA URL: đây là nguyên nhân lỗi /undefined ──
+  if (!song.url) {
+    console.error('[SMusic] Bài hát thiếu thuộc tính "url":', JSON.stringify(song));
+    setStatus('⚠️ Link nhạc bị thiếu cho "' + name + '" — Kiểm tra Apps Script!');
+    return;
+  }
+
+  console.log('[SMusic] Phát:', name, '|', song.url.substring(0, 80) + '...');
 
   ensureAudioCtx();
-  
-  // NẠP TRỰC TIẾP URL TỪ SHEET (Hỗ trợ nhiều tên biến đề phòng đổi code Server)
-  aud.src = song.url || song.fileId || song.link; 
-  
+
+  // Gán URL trực tiếp từ song.url (không dùng fallback gây nhầm lẫn)
+  aud.src = song.url;
   aud.load();
   aud.play().catch(e => {
-    console.warn('Play error:', e);
-    setStatus('⚠️ Chặn Tự Động Phát - Hãy bấm nút Play để nghe!');
+    console.warn('[SMusic] Play bị chặn:', e.message);
+    setStatus('⚠️ Trình duyệt chặn tự động phát — Hãy bấm nút Play!');
   });
 
+  // Xác định thời điểm bắt đầu
   let targetTime = 0;
-  
   if (isResume && S.savedTime > 0) {
-      targetTime = S.savedTime;
+    targetTime = S.savedTime;
   } else {
-      const lowName = name.toLowerCase();
-      for (const [key, val] of Object.entries(SONG_STARTS)) {
-        if (lowName.includes(key)) { targetTime = val; break; }
-      }
+    const lowName = name.toLowerCase();
+    for (const [key, val] of Object.entries(SONG_STARTS)) {
+      if (lowName.includes(key)) { targetTime = val; break; }
+    }
   }
 
   if (targetTime > 0) {
@@ -438,9 +486,9 @@ function togglePlay() {
   ensureAudioCtx();
   if (aud.paused) {
     if (!aud.src || aud.src === location.href) {
-      playTrack(S.idx, true); 
+      playTrack(S.idx, true);
     } else {
-      aud.play().catch(e => console.warn(e));
+      aud.play().catch(e => console.warn('[SMusic] Play error:', e));
     }
   } else {
     aud.pause();
@@ -454,8 +502,8 @@ function nextTrack() {
   if (!S.queue.length) return;
   const lastSong = S.queue[S.idx];
   S.idx++;
-  S.savedTime = 0; 
-  
+  S.savedTime = 0;
+
   if (S.idx >= S.queue.length) {
     if (S.random && S.playlist.length > 1) {
       let tries = 0;
@@ -475,21 +523,22 @@ function toggleMode() {
   const currentSong = S.queue[S.idx];
   S.queue = S.playlist.map(s => s.name);
   if (S.random) fisherYates(S.queue);
-  
+
   const ci = S.queue.indexOf(currentSong);
-  if (ci !== -1) { 
-      S.queue.splice(ci, 1); 
-      S.queue.unshift(currentSong); 
-      S.idx = 0; 
+  if (ci !== -1) {
+    S.queue.splice(ci, 1);
+    S.queue.unshift(currentSong);
+    S.idx = 0;
   }
-  
-  document.getElementById('btn-mode').textContent = S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
+
+  document.getElementById('btn-mode').textContent =
+    S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
   renderQueue();
   saveStateToBrowser();
 }
 
 /* ============================================================
-   SỰ KIỆN AUDIO & TÍNH SỐ LẦN NGHE
+   SỰ KIỆN AUDIO
    ============================================================ */
 aud.addEventListener('ended', nextTrack);
 
@@ -497,7 +546,8 @@ aud.addEventListener('timeupdate', () => {
   if (dragging || !aud.duration) return;
   const pct = aud.currentTime / aud.duration;
   document.getElementById('progress').value = Math.round(pct * 1000);
-  document.getElementById('time-lbl').textContent = fmt(aud.currentTime) + ' / ' + fmt(aud.duration);
+  document.getElementById('time-lbl').textContent =
+    fmt(aud.currentTime) + ' / ' + fmt(aud.duration);
 
   if (!countAdded && pct >= 0.9 && totalSeekMs <= 10000 && !isNextPress) {
     const songName = S.queue[S.idx];
@@ -509,8 +559,10 @@ aud.addEventListener('timeupdate', () => {
   }
 });
 
-aud.addEventListener('error', () => {
-  setStatus('⚠️ Lỗi phát nhạc - File Drive có thể bị giới hạn băng thông');
+aud.addEventListener('error', (e) => {
+  const code = aud.error ? aud.error.code : '?';
+  console.error('[SMusic] Audio error code:', code, '| src:', aud.src);
+  setStatus('⚠️ Lỗi phát nhạc (code ' + code + ') — File Drive có thể bị giới hạn băng thông hoặc chưa public');
 });
 
 /* ============================================================
@@ -545,16 +597,16 @@ function hookVolume() {
 }
 
 /* ============================================================
-   XỬ LÝ WEB AUDIO API (EQ & SPECTRUM)
+   WEB AUDIO API (EQ & SPECTRUM)
    ============================================================ */
 function ensureAudioCtx() {
   if (audReady) {
     if (actx.state === 'suspended') actx.resume();
     return;
   }
-  actx    = new (window.AudioContext || window.webkitAudioContext)();
+  actx = new (window.AudioContext || window.webkitAudioContext)();
   const src = actx.createMediaElementSource(aud);
-  let last  = src;
+  let last = src;
 
   for (let i = 0; i < 6; i++) {
     const f = actx.createBiquadFilter();
@@ -566,8 +618,8 @@ function ensureAudioCtx() {
     eqFilters.push(f);
   }
 
-  analyser          = actx.createAnalyser();
-  analyser.fftSize  = 512;
+  analyser = actx.createAnalyser();
+  analyser.fftSize = 512;
   analyser.smoothingTimeConstant = 0.8;
   last.connect(analyser);
 
@@ -588,7 +640,7 @@ function buildEQSliders() {
     const band = document.createElement('div');
     band.className = 'eq-band';
 
-    const db  = document.createElement('div');
+    const db = document.createElement('div');
     db.className = 'dbval'; db.id = `eqdb-${i}`;
     db.textContent = fmtDb(S.eq[i]);
 
@@ -623,7 +675,10 @@ function applyEQToFilters() {
   for (let i = 0; i < 6; i++) {
     if (eqFilters[i]) eqFilters[i].gain.value = S.eq[i];
     const sl = document.getElementById(`eqsl-${i}`);
-    if (sl) { sl.value = S.eq[i]; document.getElementById(`eqdb-${i}`).textContent = fmtDb(S.eq[i]); }
+    if (sl) {
+      sl.value = S.eq[i];
+      document.getElementById(`eqdb-${i}`).textContent = fmtDb(S.eq[i]);
+    }
   }
 }
 
@@ -703,7 +758,7 @@ function drawEQ() {
 }
 
 let specRaf = null;
-let specW = 0, specH = 0;
+let specW = 0;
 
 function startSpec() {
   if (specRaf) return;
@@ -735,7 +790,6 @@ function startSpec() {
     const buf = analyser.frequencyBinCount;
     const da  = new Uint8Array(buf);
     analyser.getByteFrequencyData(da);
-
     const step = Math.max(1, Math.floor(buf / BARS));
 
     for (let i = 0; i < BARS; i++) {
@@ -785,7 +839,8 @@ function toggleSpectrum(on) {
    CẬP NHẬT GIAO DIỆN
    ============================================================ */
 function setTitle(name) {
-  document.getElementById('song-title').innerHTML = `<span class="dot"></span>${name}`;
+  document.getElementById('song-title').innerHTML =
+    `<span class="dot"></span>${name}`;
 }
 
 function renderQueue() {
@@ -824,7 +879,7 @@ function renderGrid() {
     const nm = song.name;
     d.addEventListener('dblclick', () => {
       const qi = S.queue.indexOf(nm);
-      S.savedTime = 0; 
+      S.savedTime = 0;
       if (qi !== -1) playTrack(qi, false);
       else { S.queue.splice(S.idx, 0, nm); playTrack(S.idx, false); }
     });
@@ -835,20 +890,20 @@ function renderGrid() {
 function applyUI() {
   document.getElementById('vol-sl').value = S.volume;
   document.getElementById('vol-lbl').textContent = S.volume + '%';
-  document.getElementById('btn-mode').textContent = S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
+  document.getElementById('btn-mode').textContent =
+    S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
   document.getElementById('spec-chk').checked = S.spectrum;
   applyEQToFilters();
   drawEQ();
   renderQueue();
   renderGrid();
   if (S.spectrum) setTimeout(startSpec, 400);
-
   if (S.queue[S.idx]) setTitle(S.queue[S.idx]);
 }
 
 function tickUI() {
-  const btnPlay = document.getElementById('btn-play');
-  btnPlay.textContent = aud.paused ? '▶ Phát / Tạm dừng' : '⏸ Tạm dừng';
+  document.getElementById('btn-play').textContent =
+    aud.paused ? '▶ Phát / Tạm dừng' : '⏸ Tạm dừng';
 }
 
 function hookTabs() {
@@ -874,12 +929,11 @@ function fmt(sec) {
 function fmtDb(v) { return (v >= 0 ? '+' : '') + v + 'dB'; }
 
 function setStatus(msg) { document.getElementById('statusbar').textContent = msg; }
-function setLoadMsg(msg) { document.getElementById('load-msg').textContent = msg; }
-function hideLoader()    { document.getElementById('loader').style.display = 'none'; }
+function hideLoader()   { document.getElementById('loader').style.display = 'none'; }
 
-window.addEventListener('resize', () => { drawEQ(); });
+window.addEventListener('resize', drawEQ);
 
-// Khởi chạy App
+// Khởi chạy
 init();
 </script>
 </body>
