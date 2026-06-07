@@ -413,7 +413,7 @@ function renderGrid() {
   const curName = S.queue[S.idx];
   for (const song of S.playlist) {
     const cnt = S.counts[song.name] || 0, now = song.name === curName, d = document.createElement('div'); d.className = 'scard' + (now ? ' now' : '');
-    d.innerHTML = `<div class="cico">${now?'🎵':'🎶'}</div><div class="cname">${song.name}</div><div class="ccnt">🎧 x${cnt}</div>`;
+    d.innerHTML = `<div class="cico">${now?'*':'o'}</div><div class="cname">${song.name}</div><div class="ccnt">(${cnt})</div>`;
     const nm = song.name;
     d.addEventListener('dblclick', () => {
       const qi = S.queue.indexOf(nm); S.savedTime = 0;
@@ -431,7 +431,7 @@ function applyUI() {
   if (S.spectrum) setTimeout(startSpec, 400); if (S.queue[S.idx]) setTitle(S.queue[S.idx]);
 }
 
-function tickUI() { document.getElementById('btn-play').textContent = aud.paused ? '▶ Play / Tạm dừng' : '⏸ Tạm dừng (Fade Out)'; }
+function tickUI() { document.getElementById('btn-play').textContent = aud.paused ? '▶ Play' : '⏸ '; }
 
 function hookTabs() {
   const tabs = ['control','eq','spectrum','playlist'];
