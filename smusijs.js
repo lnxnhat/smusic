@@ -1,7 +1,6 @@
 /* ============================================================
    CONFIG - LINK TỚI GOOGLE APPS SCRIPT
    ============================================================ */
-// BẠN HÃY THAY LINK WEB APP MỚI VÀO ĐÂY SAU KHI TRIỂN KHAI CODE.GS MỚI
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwUgRFtf6SdwgFQ1RP6QpIxzxzshCDT0E_jypErRxebcqFIrmDwqdUQy9S87oIVWJWE9Q/exec";
 
 const STORE_KEY  = 'smusic_supabase_storage';
@@ -14,11 +13,13 @@ const SONG_STARTS = { 'leave me alone': 22, 'broken strings': 30 };
 let S = { playlist: [], queue: [], idx: 0, random: true, volume: 100, counts: {}, eq: [0,0,0,0,0,0], spectrum: true, savedTime: 0 };
 
 const aud = document.getElementById('aud');
+const cacheAud = document.getElementById('cache-aud'); // Cache layer
 let actx = null, analyser = null, gainNode = null;
 const eqFilters = [];
 let audReady = false;
 
 let countAdded = false, isNextPress = false, totalSeekMs = 0, dragging = false, seekSnapStart = 0;
+let fadeInterval = null; // Quản lý Fade 750ms
 
 async function init() {
   loadStateFromBrowser();
@@ -26,12 +27,20 @@ async function init() {
   hookProgress();
   hookVolume();
   hookTabs();
+  hookGestures(); // Bật Swipe
   await fetchFromGoogle();
   applyUI();
   hideLoader();
 
   setInterval(saveStateToBrowser, 1000);
   setInterval(tickUI, 200);
+
+  // iOS BACKGROUND FIX: Đánh thức AudioContext khi mở lại tab
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && actx && actx.state === 'suspended') {
+      actx.resume();
+    }
+  });
 }
 
 function loadStateFromBrowser() {
@@ -107,6 +116,36 @@ function getSong(name) {
   return S.playlist.find(s => s.name === name) || null;
 }
 
+// ==========================================
+// LOGIC FADE IN / FADE OUT 750ms (ĐÃ FIX CHO WEB AUDIO API)
+// ==========================================
+function fadeAudio(targetVolPct, duration = 750, callback = null) {
+  clearInterval(fadeInterval);
+  if (!audReady) { if (callback) callback(); return; }
+  
+  const steps = 20;
+  const stepTime = duration / steps;
+  const maxVol = Math.max(0.1, S.volume / 100); // Lấy âm lượng người dùng đang set làm chuẩn
+  const target = (targetVolPct / 100) * maxVol;
+  const stepVol = (target - (gainNode ? gainNode.gain.value : aud.volume)) / steps;
+
+  fadeInterval = setInterval(() => {
+    let currentVol = gainNode ? gainNode.gain.value : aud.volume;
+    let nextVol = currentVol + stepVol;
+    
+    if ((stepVol > 0 && nextVol >= target) || (stepVol < 0 && nextVol <= target)) {
+      if (gainNode) gainNode.gain.value = target;
+      aud.volume = target; // Set cả 2 để iOS không bị lỗi ngầm
+      clearInterval(fadeInterval);
+      if (callback) callback();
+    } else {
+      let safeVol = Math.max(0, Math.min(1, nextVol));
+      if (gainNode) gainNode.gain.value = safeVol;
+      aud.volume = safeVol;
+    }
+  }, stepTime);
+}
+
 function playTrack(qIdx, isResume = false) {
   countAdded = false; isNextPress = false; totalSeekMs = 0; S.idx = qIdx;
   const name = S.queue[qIdx];
@@ -115,10 +154,14 @@ function playTrack(qIdx, isResume = false) {
 
   ensureAudioCtx();
   
-  // GÁN TRỰC TIẾP LINK SUPABASE. TỐC ĐỘ BÀN THỜ!
   aud.src = song.url; 
   aud.load();
-  aud.play().catch(e => setStatus('⚠️ Trình duyệt chặn tự động phát — Hãy bấm nút Play!'));
+  aud.volume = 0; // Bắt đầu Fade In
+  if (gainNode) gainNode.gain.value = 0;
+
+  aud.play().then(() => {
+      fadeAudio(100, 750); // Fade In 750ms
+  }).catch(e => setStatus('⚠️ Trình duyệt chặn tự động phát — Hãy bấm nút Play!'));
 
   let targetTime = (isResume && S.savedTime > 0) ? S.savedTime : 0;
   if (!targetTime) {
@@ -131,15 +174,39 @@ function playTrack(qIdx, isResume = false) {
   }
 
   setTitle(name); renderQueue(); renderGrid(); saveStateToBrowser();
+
+  // OFFLINE-FIRST CACHING: Tải trước bài tiếp theo
+  let nextSong = getSong(S.queue[(S.idx + 1) % S.queue.length]);
+  if (nextSong) cacheAud.src = nextSong.url;
+
+  // MEDIA SESSION API (BÁO CÁO VỚI IOS ĐỂ KHÔNG BỊ GIẾT NGẦM)
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: name, artist: "SMusic Cloud" });
+    navigator.mediaSession.setActionHandler('play', togglePlay);
+    navigator.mediaSession.setActionHandler('pause', togglePlay);
+    navigator.mediaSession.setActionHandler('previoustrack', prevTrackBtn);
+    navigator.mediaSession.setActionHandler('nexttrack', nextTrackBtn);
+  }
 }
 
 function togglePlay() {
   ensureAudioCtx();
-  if (aud.paused) { (!aud.src || aud.src === location.href) ? playTrack(S.idx, true) : aud.play(); } 
-  else { aud.pause(); saveStateToBrowser(); }
+  if (aud.paused) { 
+      if (!aud.src || aud.src === location.href) {
+          playTrack(S.idx, true);
+      } else {
+          aud.play().then(() => fadeAudio(100, 750)); // Fade In
+      }
+  } else { 
+      fadeAudio(0, 750, () => {
+          aud.pause(); 
+          saveStateToBrowser();
+      }); // Fade Out rồi mới dừng
+  }
 }
 
-function nextTrackBtn() { isNextPress = true; nextTrack(); }
+function nextTrackBtn() { isNextPress = true; fadeAudio(0, 300, nextTrack); } // Fade out nhanh khi bấm Next
+function prevTrackBtn() { fadeAudio(0, 300, prevTrack); }
 
 function nextTrack() {
   if (!S.queue.length) return;
@@ -154,15 +221,12 @@ function nextTrack() {
   playTrack(S.idx, false);
 }
 
-function toggleMode() {
-  S.random = !S.random;
-  const currentSong = S.queue[S.idx];
-  S.queue = S.playlist.map(s => s.name);
-  if (S.random) fisherYates(S.queue);
-  const ci = S.queue.indexOf(currentSong);
-  if (ci !== -1) { S.queue.splice(ci, 1); S.queue.unshift(currentSong); S.idx = 0; }
-  document.getElementById('btn-mode').textContent = S.random ? 'Chế độ: Ngẫu nhiên' : 'Chế độ: Tuần tự';
-  renderQueue(); saveStateToBrowser();
+function prevTrack() {
+  if (!S.queue.length) return;
+  S.idx--; S.savedTime = 0;
+  if (S.idx < 0) S.idx = S.queue.length - 1;
+  saveStateToBrowser();
+  playTrack(S.idx, false);
 }
 
 aud.addEventListener('ended', nextTrack);
@@ -183,7 +247,7 @@ aud.addEventListener('error', (e) => setStatus('⚠️ Lỗi phát nhạc - Link
 function hookProgress() {
   const sl = document.getElementById('progress');
   sl.addEventListener('mousedown',  () => { dragging = true; seekSnapStart = aud.currentTime; });
-  sl.addEventListener('touchstart', () => { dragging = true; seekSnapStart = aud.currentTime; });
+  sl.addEventListener('touchstart', () => { dragging = true; seekSnapStart = aud.currentTime; }, {passive: true});
   sl.addEventListener('change', () => {
     if (!aud.duration) { dragging = false; return; }
     const t = (sl.value / 1000) * aud.duration;
@@ -197,9 +261,35 @@ function hookVolume() {
   document.getElementById('vol-lbl').textContent = S.volume + '%';
   sl.addEventListener('input', () => {
     S.volume = +sl.value; document.getElementById('vol-lbl').textContent = S.volume + '%';
-    aud.volume = S.volume / 100; if (gainNode) gainNode.gain.value = S.volume / 100;
+    const realVol = S.volume / 100;
+    aud.volume = realVol; if (gainNode) gainNode.gain.value = realVol;
     saveStateToBrowser();
   });
+}
+
+// VUỐT NGANG (SWIPE) ĐỂ CHUYỂN BÀI
+function hookGestures() {
+    let touchStartX = 0;
+    document.body.addEventListener('touchstart', e => {
+        if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; 
+        touchStartX = e.changedTouches[0].screenX;
+    }, {passive: true});
+    
+    document.body.addEventListener('touchend', e => {
+        if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+        let diff = e.changedTouches[0].screenX - touchStartX;
+        if (diff > 80) prevTrackBtn(); // Vuốt Phải -> Bài trước
+        if (diff < -80) nextTrackBtn(); // Vuốt Trái -> Bài sau
+    }, {passive: true});
+}
+
+// TOGGLE MINI PLAYER
+function toggleMiniPlayerUI() {
+    document.body.classList.toggle('mini-player-active');
+    // Khi thoát mini player, cuộn lên bài hát đang phát
+    if (!document.body.classList.contains('mini-player-active')) {
+        setTimeout(renderQueue, 100);
+    }
 }
 
 // KHỞI TẠO ÂM THANH - ĐÃ XỬ LÝ CORS CẤP TRÌNH DUYỆT BẰNG THẺ AUDIO
@@ -218,7 +308,6 @@ function ensureAudioCtx() {
   audReady = true; applyEQToFilters(); if (S.spectrum) startSpec();
 }
 
-// TOÀN BỘ CODE VẼ EQ VÀ SPECTRUM GIỮ NGUYÊN (VÌ NÓ ĐÃ RẤT XỊN RỒI)
 function buildEQSliders() {
   const row = document.getElementById('eq-row'); row.innerHTML = '';
   for (let i = 0; i < 6; i++) {
@@ -316,7 +405,7 @@ function renderQueue() {
     const ci = i; d.addEventListener('dblclick', () => { S.savedTime = 0; playTrack(ci, false); });
     el.appendChild(d);
   }
-  const playing = el.querySelector('.now'); if (playing) setTimeout(() => playing.scrollIntoView({behavior:'smooth',block:'nearest'}), 80);
+  const playing = el.querySelector('.now'); if (playing && !document.body.classList.contains('mini-player-active')) setTimeout(() => playing.scrollIntoView({behavior:'smooth',block:'nearest'}), 80);
 }
 
 function renderGrid() {
@@ -342,7 +431,7 @@ function applyUI() {
   if (S.spectrum) setTimeout(startSpec, 400); if (S.queue[S.idx]) setTitle(S.queue[S.idx]);
 }
 
-function tickUI() { document.getElementById('btn-play').textContent = aud.paused ? '▶ Phát / Tạm dừng' : '⏸ Tạm dừng'; }
+function tickUI() { document.getElementById('btn-play').textContent = aud.paused ? '▶ Play / Tạm dừng' : '⏸ Tạm dừng (Fade Out)'; }
 
 function hookTabs() {
   const tabs = ['control','eq','spectrum','playlist'];
