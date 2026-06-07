@@ -282,7 +282,13 @@ input[type=range]::-moz-range-thumb {
 .btn:hover { box-shadow: var(--glow-sm); transform: translateY(-1px); border-color: rgba(147,197,253,.45); }
 .btn:hover::after { opacity: 1; }
 .btn:active { transform: scale(.97) translateY(0); box-shadow: none; }
-
+#btn-mini {
+  background: linear-gradient(135deg, rgba(34,211,238,.1) 0%, rgba(59,130,246,.16) 100%);
+  border-color: rgba(34,211,238,.25);
+  font-size: 12px;
+  margin-top: 4px;
+}
+#btn-mini:hover { border-color: rgba(34,211,238,.5); box-shadow: 0 0 12px rgba(34,211,238,.25); }
 
 /* ═══════════════════════════════════════════════
    SECTION LABEL
@@ -500,6 +506,21 @@ input[type=range]::-moz-range-thumb {
   opacity: 1;
   pointer-events: all;
 }
+/* Floating notes */
+.ss-note {
+  position: absolute;
+  font-size: 20px;
+  opacity: 0;
+  pointer-events: none;
+  animation: ssNoteFloat 9s ease-in-out infinite;
+  filter: blur(.4px);
+}
+@keyframes ssNoteFloat {
+  0%          { opacity: 0;   transform: translateY(10px) rotate(-5deg); }
+  12%         { opacity: .22; }
+  80%         { opacity: .08; }
+  100%        { opacity: 0;   transform: translateY(-130px) rotate(18deg); }
+}
 /* Central ring group */
 .ss-rings {
   position: relative;
@@ -571,10 +592,6 @@ input[type=range]::-moz-range-thumb {
   margin-top: 24px;
   animation: ssBlink 3s ease-in-out infinite 1s;
 }
-
-
-
-
 /* ═══════════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════════ */
@@ -596,6 +613,14 @@ input[type=range]::-moz-range-thumb {
      SCREENSAVER OVERLAY
 ════════════════════════════════════════ -->
 <div id="screensaver">
+  <div class="ss-scanline"></div>
+  <!-- Floating music notes -->
+  <span class="ss-note" style="left:8%;  top:18%; animation-delay:0s;   font-size:22px">🎵</span>
+  <span class="ss-note" style="right:11%;top:26%; animation-delay:2.8s; font-size:16px">🎶</span>
+  <span class="ss-note" style="left:20%; top:58%; animation-delay:5.2s; font-size:18px">♪</span>
+  <span class="ss-note" style="right:18%;top:62%; animation-delay:1.6s; font-size:20px">♫</span>
+  <span class="ss-note" style="left:48%; top:72%; animation-delay:3.9s; font-size:16px">🎵</span>
+  <span class="ss-note" style="left:75%; top:40%; animation-delay:6.5s; font-size:19px">🎶</span>
   <!-- Central animation -->
   <div class="ss-rings">
     <div class="ss-ring"></div>
@@ -624,7 +649,7 @@ input[type=range]::-moz-range-thumb {
 ════════════════════════════════════════ -->
 <div id="app">
   <div class="hdr">
-    <h1><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:8px;opacity:.85"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>SMUSIC PLAYER</h1>
+    <h1>🎵 SMUSIC PLAYER</h1>
     <div class="sub" id="statusbar">Đang khởi động kết nối Cloud...</div>
   </div>
 
@@ -638,23 +663,23 @@ input[type=range]::-moz-range-thumb {
 
     <!-- TAB: CONTROL -->
     <div id="tab-control" class="tab on">
-      <div class="song-title" id="song-title">Chưa chọn bài hát</div>
+      <div class="song-title" id="song-title" onclick="toggleMiniPlayerUI()">Chưa chọn bài hát</div>
       <div class="prog-row">
         <input type="range" id="progress" min="0" max="1000" value="0">
         <span class="time-lbl" id="time-lbl">00:00 / 00:00</span>
       </div>
       <div class="vol-row">
-        <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Âm lượng:</span>
+        <span>🔊 Âm lượng:</span>
         <input type="range" id="vol-sl" min="0" max="100" value="100">
         <span class="vol-lbl" id="vol-lbl">100%</span>
       </div>
       <div class="btn-row">
         <button class="btn" id="btn-mode"  onclick="toggleMode()">Chế độ: Ngẫu nhiên</button>
-        <button class="btn"               onclick="prevTrackBtn()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>Prev</button>
-        <button class="btn" id="btn-play"  onclick="togglePlay()"><svg id="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:5px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play</button>
-        <button class="btn"               onclick="nextTrackBtn()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>Next</button>
+        <button class="btn"               onclick="prevTrackBtn()">⏮ Prev</button>
+        <button class="btn" id="btn-play"  onclick="togglePlay()">▶ Play</button>
+        <button class="btn"               onclick="nextTrackBtn()">⏭ Next</button>
       </div>
-      <div class="sec-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Hàng đợi phát hiện tại</div>
+      <div class="sec-lbl">🎵 Hàng đợi phát hiện tại</div>
       <div class="queue-wrap" id="queue-wrap"></div>
     </div>
 
@@ -755,28 +780,5 @@ input[type=range]::-moz-range-thumb {
 </script>
 
 <script src="smusijs.js"></script>
-<script>
-/* ── Play / Pause button auto-update ───────────── */
-(function () {
-  const SVG_PLAY  = `<svg id="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:5px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play`;
-  const SVG_PAUSE = `<svg id="ico-play" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="display:inline;vertical-align:middle;margin-right:5px"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>Dừng`;
-
-  function init() {
-    const aud    = document.getElementById('aud');
-    const btnPlay = document.getElementById('btn-play');
-    if (!aud || !btnPlay) return;
-
-    aud.addEventListener('play',  () => { btnPlay.innerHTML = SVG_PAUSE; });
-    aud.addEventListener('pause', () => { btnPlay.innerHTML = SVG_PLAY;  });
-    aud.addEventListener('ended', () => { btnPlay.innerHTML = SVG_PLAY;  });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-</script>
 </body>
 </html>
