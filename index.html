@@ -601,7 +601,7 @@ input[type=range]::-moz-range-thumb {
     transparent,
     transparent 3px,
     rgba(255,255,255,.007) 3px,
-    rgba(2,2,255,.007) 4px
+    rgba(255,255,255,.007) 4px
   );
   pointer-events: none;
   opacity: .6;
@@ -725,7 +725,7 @@ body.mini-player-active .btn { min-width: unset; padding: 8px 10px; font-size: 1
       <div class="btn-row">
         <button class="btn" id="btn-mode"  onclick="toggleMode()">Chế độ: Ngẫu nhiên</button>
         <button class="btn"               onclick="prevTrackBtn()">⏮ Prev</button>
-        <button class="btn" id="btn-play"  onclick="togglePlay()">▶ Play </button>
+        <button class="btn" id="btn-play"  onclick="togglePlay()">▶ Play / Tạm dừng</button>
         <button class="btn"               onclick="nextTrackBtn()">⏭ Next</button>
       </div>
       <button class="btn" id="btn-mini" onclick="toggleMiniPlayerUI()">🔽 Thu nhỏ xuống Mini Player</button>
@@ -763,7 +763,7 @@ body.mini-player-active .btn { min-width: unset; padding: 8px 10px; font-size: 1
 ════════════════════════════════════════ -->
 <script>
 (function () {
-  const IDLE_DELAY = 1000; // 55 seconds without interaction → screensaver
+  const IDLE_DELAY = 55000; // 55 seconds without interaction → screensaver
   const ss        = document.getElementById('screensaver');
   const ssSong    = document.getElementById('ss-song-name');
   const songTitle = document.getElementById('song-title');
