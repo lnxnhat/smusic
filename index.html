@@ -6,16 +6,10 @@
 <title>SMusic Player - Cloud Edition</title>
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ═══════════════════════════════════════════════
-   TOKENS & RESET
-═══════════════════════════════════════════════ */
 :root {
   --bg:        #060a14;
-  --bg2:       #0c1220;
-  --bg3:       #101929;
   --surface:   rgba(12, 18, 32, 0.82);
   --blue:      #3b82f6;
-  --bluedark:  #1d4ed8;
   --bluelit:   #93c5fd;
   --cyan:      #22d3ee;
   --white:     #e8f0ff;
@@ -26,52 +20,45 @@
 html, body { height: 100%; background: var(--bg); color: var(--white); font-family: 'DM Sans', sans-serif; }
 body { padding: 16px; display: flex; justify-content: center; align-items: flex-start; }
 
-/* SCREENSAVER */
 #screensaver {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999;
-  display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.5s;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.5s;
 }
 #screensaver.ss-active { opacity: 1; pointer-events: auto; }
 #ss-song { font-family: 'Exo 2', sans-serif; font-size: 2rem; color: var(--cyan); text-shadow: 0 0 20px var(--cyan); text-align: center; padding: 0 20px; }
 
-/* APP SHELL */
 #app { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 14px; }
-.hdr { text-align: center; padding: 20px 0; }
-.hdr h1 { font-family: 'Exo 2', sans-serif; font-size: 2rem; color: var(--bluelit); letter-spacing: 5px; }
+.hdr { text-align: center; padding: 15px 0; }
+.hdr h1 { font-family: 'Exo 2', sans-serif; font-size: 1.8rem; color: var(--bluelit); letter-spacing: 4px; }
 
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
 
-/* TABS */
 .tabbar { display: flex; background: rgba(4, 8, 16, 0.55); padding: 10px 10px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
-.tabbar button { background: transparent; color: var(--muted); padding: 10px 18px; border: none; cursor: pointer; border-radius: 10px 10px 0 0; font-weight: 500; white-space: nowrap; }
+.tabbar button { background: transparent; color: var(--muted); padding: 10px 15px; border: none; cursor: pointer; border-radius: 10px 10px 0 0; font-weight: 600; white-space: nowrap; }
 .tabbar button.active { color: var(--white); background: var(--surface); border: 1px solid var(--border); border-bottom: none; }
-.tab { display: none; padding: 22px; flex-direction: column; gap: 16px; }
+.tab { display: none; padding: 20px; flex-direction: column; gap: 16px; }
 .tab.on { display: flex; }
 
-/* DANH SÁCH & NÚT */
-.qitem { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 6px; }
+.qitem { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 6px; }
 .qitem.now { border-color: var(--blue); background: rgba(59,130,246,.1); }
-.qname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.qname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: 500; }
 
-.dl-btn { background: transparent; color: var(--cyan); border: 1px solid var(--cyan); border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; position: relative; z-index: 10; font-family: monospace; }
+.dl-btn { background: transparent; color: var(--cyan); border: 1px solid var(--cyan); border-radius: 4px; padding: 5px 8px; font-size: 11px; cursor: pointer; font-family: monospace; }
 .dl-btn:disabled { color: var(--muted); border-color: var(--muted); cursor: default; }
 
-.btn { background: rgba(59,130,246,.1); color: var(--white); border: 1px solid rgba(147,197,253,.25); border-radius: 8px; padding: 10px 15px; cursor: pointer; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+.btn { background: rgba(59,130,246,.1); color: var(--white); border: 1px solid rgba(147,197,253,.25); border-radius: 8px; padding: 10px 12px; cursor: pointer; font-weight: 600; font-size: 12px; flex: 1; min-width: 80px; text-align: center; }
 .btn:active { background: rgba(59,130,246,.25); }
 
-/* CONTROLS SLIDER */
 .slider-container { display: flex; gap: 12px; align-items: center; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.04); }
 input[type=range] { flex: 1; accent-color: var(--blue); height: 6px; border-radius: 3px; cursor: pointer; }
 
-/* EQ STYLING */
 #eq-graph-container { width: 100%; margin-bottom: 10px; }
 #eq-canvas { width: 100%; height: 160px; background: #040812; border-radius: 12px; border: 1px solid var(--border); display: block; }
-#eq-container { display: flex; gap: 12px; justify-content: space-between; padding: 10px 5px; }
+#eq-container { display: flex; gap: 8px; justify-content: space-between; padding: 10px 0; }
 .eq-slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 11px; color: var(--white); flex: 1; }
-.eq-slider-wrap input[type=range] { writing-mode: vertical-lr; direction: rtl; appearance: slider-vertical; -webkit-appearance: slider-vertical; width: 12px; height: 120px; accent-color: var(--cyan); }
+.eq-slider-wrap input[type=range] { writing-mode: vertical-lr; direction: rtl; appearance: slider-vertical; -webkit-appearance: slider-vertical; width: 12px; height: 110px; accent-color: var(--cyan); }
 .eq-label { color: var(--muted); font-weight: 600; margin-top: 4px; }
 
-/* SPECTRUM */
 #spec-canvas { width: 100%; height: 200px; background: #000; border-radius: 8px; border: 1px solid var(--border); }
 #pip-video { display: none; }
 </style>
@@ -79,59 +66,65 @@ input[type=range] { flex: 1; accent-color: var(--blue); height: 6px; border-radi
 <body>
 
 <div id="screensaver">
+  <div style="font-size: 12px; color: var(--muted); margin-bottom: 10px; letter-spacing: 2px;">ĐANG PHÁT</div>
   <div id="ss-song">Chưa chọn bài hát</div>
 </div>
 
 <div id="app">
   <div class="hdr">
     <h1>SMUSIC PLAYER</h1>
-    <div id="statusbar" style="color: var(--muted); font-size: 12px; margin-top: 5px; font-weight: 500;">Sẵn sàng</div>
+    <div id="statusbar" style="color: var(--muted); font-size: 12px; margin-top: 5px;">Hệ thống sẵn sàng</div>
   </div>
 
   <div class="panel">
     <div class="tabbar">
-      <button class="active" data-tab="control">Control</button>
-      <button data-tab="eq">EQ</button>
-      <button data-tab="spectrum">Spectrum</button>
-      <button data-tab="playlist">Playlist</button>
+      <button class="active" data-tab="control">Phát Nhạc</button>
+      <button data-tab="eq">Bộ Lọc EQ</button>
+      <button data-tab="spectrum">Hiệu Ứng</button>
+      <button data-tab="playlist">Kho Nhạc</button>
     </div>
 
     <div id="tab-control" class="tab on">
-      <div id="song-title" style="text-align:center; font-size: 1.2rem; color: var(--bluelit); min-height: 30px; font-family: 'Exo 2', sans-serif; font-weight: 600;">Chưa chọn bài hát</div>
+      <div id="song-title" style="text-align:center; font-size: 1.2rem; color: var(--bluelit); min-height: 30px; font-weight: 700;">Chưa chọn bài hát</div>
       
       <div class="slider-container">
         <input type="range" id="progress" min="0" max="1000" value="0">
-        <span id="time-lbl" style="font-family: monospace; font-size: 12px; color: var(--bluelit);">00:00 / 00:00</span>
+        <span id="time-lbl" style="font-family: monospace; font-size: 12px; color: var(--bluelit); min-width: 80px; text-align: right;">00:00 / 00:00</span>
       </div>
 
-      <div class="slider-container" style="max-width: 300px; margin: 0 auto; width: 100%;">
+      <div class="slider-container">
         <span style="font-size: 12px; color: var(--muted); font-weight: 600;">VOL</span>
         <input type="range" id="volume" min="0" max="100" value="100">
-        <span id="vol-lbl" style="font-family: monospace; font-size: 12px; min-width: 35px; text-align: right;">100%</span>
+        <span id="vol-lbl" style="font-family: monospace; font-size: 12px; min-width: 40px; text-align: right;">100%</span>
       </div>
 
-      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px;">
-        <button class="btn" id="btn-mode" onclick="toggleMode()">Chế độ: Ngẫu nhiên</button>
-        <button class="btn" onclick="prevTrack()">Trở lại</button>
-        <button class="btn" id="btn-play" onclick="togglePlay()" style="min-width: 80px; background: rgba(59,130,246,0.2); border-color: var(--blue);">▶ Play</button>
-        <button class="btn" onclick="nextTrack()">Tiếp theo</button>
-        <button class="btn" onclick="togglePiP()" style="border-color: var(--cyan); color: var(--cyan);">PiP Mode</button>
-        <button class="btn" id="btn-dl-all" onclick="downloadAllSongs()" style="border-color: #10b981; color: #10b981;">[ Tải tất cả ]</button>
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn" onclick="prevTrack()">⏮ Trước</button>
+        <button class="btn" id="btn-play" onclick="togglePlay()" style="background: rgba(59,130,246,0.2); border-color: var(--blue);">▶ Phát</button>
+        <button class="btn" onclick="nextTrack()">Sau ⏭</button>
       </div>
       
-      <div id="queue-wrap" style="max-height: 280px; overflow-y: auto; margin-top: 15px; padding-right: 4px;"></div>
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn" id="btn-mode" onclick="toggleMode()">🔄 Ngẫu nhiên</button>
+        <button class="btn" onclick="togglePiP()" style="border-color: var(--cyan); color: var(--cyan);">📺 PiP Mode</button>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn" id="btn-dl-all" onclick="downloadAllSongs()" style="border-color: #10b981; color: #10b981;">⬇️ Tải tất cả nhạc</button>
+        <button class="btn" onclick="clearAllCache()" style="border-color: #ef4444; color: #ef4444;">🗑️ Xóa bộ nhớ</button>
+      </div>
+      
+      <div id="queue-wrap" style="max-height: 250px; overflow-y: auto; margin-top: 10px; padding-right: 4px;"></div>
     </div>
 
     <div id="tab-eq" class="tab">
-      <div id="eq-graph-container">
-        <canvas id="eq-canvas"></canvas>
-      </div>
+      <div id="eq-graph-container"><canvas id="eq-canvas"></canvas></div>
       <div id="eq-container"></div>
     </div>
 
     <div id="tab-spectrum" class="tab">
       <label style="display:flex; align-items:center; gap: 10px; cursor: pointer; font-size: 14px;">
-        <input type="checkbox" id="spec-chk" checked> Bật/Tắt Spectrum
+        <input type="checkbox" id="spec-chk" checked> Bật Sóng Nhạc Spectrum
       </label>
       <canvas id="spec-canvas" height="200"></canvas>
       <video id="pip-video" muted playsinline></video>
