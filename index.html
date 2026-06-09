@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>SMusic Player - Cloud Edition</title>
+<title>SMusic Player - Offline Edition</title>
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════
@@ -12,19 +12,14 @@
 :root {
   --bg:        #060a14;
   --bg2:       #0c1220;
-  --bg3:       #101929;
   --surface:   rgba(12, 18, 32, 0.82);
   --blue:      #3b82f6;
-  --bluedark:  #1d4ed8;
   --bluelit:   #93c5fd;
   --cyan:      #22d3ee;
   --white:     #e8f0ff;
   --muted:     #46607c;
   --border:    rgba(59, 130, 246, 0.14);
-  --border-hi: rgba(59, 130, 246, 0.35);
-  --glow:      0 0 18px rgba(59,130,246,.35), 0 0 36px rgba(59,130,246,.12);
   --glow-sm:   0 0 10px rgba(59,130,246,.45);
-  --radius:    14px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--white); font-family: 'DM Sans', sans-serif; }
@@ -34,10 +29,6 @@ body {
   align-items: flex-start;
   padding: 16px;
   min-height: 100vh;
-  background-image:
-    radial-gradient(ellipse 90% 55% at 8% 4%,  rgba(59,130,246,.06) 0, transparent 55%),
-    radial-gradient(ellipse 55% 65% at 92% 96%, rgba(34,211,238,.04) 0, transparent 55%),
-    radial-gradient(ellipse 60% 70% at 50% 50%, rgba(29,78,216,.03) 0, transparent 65%);
   touch-action: pan-y;
   overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
@@ -47,652 +38,126 @@ button, .btn { touch-action: manipulation; }
 /* ═══════════════════════════════════════════════
    APP SHELL
 ═══════════════════════════════════════════════ */
-#app {
-  width: 100%;
-  max-width: 960px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  transition: all 0.4s ease;
-}
+#app { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 14px; }
 
-/* ═══════════════════════════════════════════════
-   HEADER
-═══════════════════════════════════════════════ */
-.hdr {
-  text-align: center;
-  padding: 20px 0 10px;
-  position: relative;
-}
-.hdr::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 80px; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59,130,246,.6), transparent);
-}
+.hdr { text-align: center; padding: 20px 0 10px; position: relative; }
 .hdr h1 {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: 5px;
-  background: linear-gradient(110deg, #93c5fd 0%, #3b82f6 35%, #22d3ee 65%, #93c5fd 100%);
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: hdrShimmer 5s linear infinite;
-}
-@keyframes hdrShimmer {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 220% 50%; }
-}
-.hdr .sub {
-  font-size: 10.5px;
-  color: var(--muted);
-  letter-spacing: 1.8px;
-  margin-top: 7px;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-/* ═══════════════════════════════════════════════
-   MAIN PANEL
-═══════════════════════════════════════════════ */
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  overflow: hidden;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow:
-    0 2px 40px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.04),
-    inset 0 -1px 0 rgba(0,0,0,.25);
-  transition: all 0.3s ease;
-}
-
-/* ═══════════════════════════════════════════════
-   TAB BAR
-═══════════════════════════════════════════════ */
-.tabbar {
-  display: flex;
-  background: rgba(4, 8, 16, 0.55);
-  padding: 10px 10px 0;
-  gap: 3px;
-  border-bottom: 1px solid var(--border);
-}
-.tabbar button {
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid transparent;
-  padding: 10px 18px;
-  border-radius: 10px 10px 0 0;
-  cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  font-size: 12.5px;
-  transition: all .22s;
-  white-space: nowrap;
-  margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
-  letter-spacing: .1px;
-}
-.tabbar button:hover {
+  font-family: 'Exo 2', sans-serif; font-size: 2rem; font-weight: 900; letter-spacing: 5px;
   color: var(--bluelit);
-  background: rgba(59,130,246,.07);
 }
-.tabbar button.active {
-  color: var(--white);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-bottom: 2px solid var(--surface);
-  box-shadow: 0 0 18px rgba(59,130,246,.18);
+.hdr .sub { font-size: 10.5px; color: var(--muted); letter-spacing: 1.8px; margin-top: 7px; text-transform: uppercase; }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  overflow: hidden; box-shadow: 0 2px 40px rgba(0,0,0,.55);
 }
 
 /* ═══════════════════════════════════════════════
-   TABS
+   TABS & CONTROLS
 ═══════════════════════════════════════════════ */
+.tabbar { display: flex; background: rgba(4, 8, 16, 0.55); padding: 10px 10px 0; gap: 3px; border-bottom: 1px solid var(--border); }
+.tabbar button {
+  background: transparent; color: var(--muted); padding: 10px 18px; border-radius: 10px 10px 0 0;
+  cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 12.5px; border: none;
+}
+.tabbar button.active { color: var(--white); background: var(--surface); border: 1px solid var(--border); border-bottom: none; }
 .tab { display: none; padding: 22px; flex-direction: column; gap: 16px; min-height: 460px; }
 .tab.on { display: flex; }
 
-/* ═══════════════════════════════════════════════
-   SONG TITLE
-═══════════════════════════════════════════════ */
 .song-title {
-  text-align: center;
-  font-family: 'Exo 2', sans-serif;
-  font-size: 1.42rem;
-  font-weight: 700;
-  letter-spacing: .3px;
-  min-height: 46px;
-  word-break: break-word;
-  padding: 8px 8px;
-  background: linear-gradient(130deg, var(--white) 0%, var(--bluelit) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1.35;
-  cursor: pointer;
-  transition: opacity .2s;
-}
-.song-title:active { opacity: .75; }
-.dot {
-  display: inline-block;
-  width: 8px; height: 8px;
-  background: var(--cyan);
-  border-radius: 50%;
-  margin-right: 9px;
-  vertical-align: middle;
-  animation: dotPulse 1.3s ease infinite;
-  box-shadow: 0 0 8px var(--cyan);
-  -webkit-text-fill-color: initial;
-}
-@keyframes dotPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .25; transform: scale(.65); }
+  text-align: center; font-family: 'Exo 2', sans-serif; font-size: 1.42rem; font-weight: 700;
+  color: var(--bluelit); min-height: 46px; word-break: break-word; padding: 8px 8px;
 }
 
-/* ═══════════════════════════════════════════════
-   PROGRESS & VOLUME ROWS
-═══════════════════════════════════════════════ */
-.prog-row { display: flex; align-items: center; gap: 12px; }
-.time-lbl {
-  font-family: 'Exo 2', monospace;
-  font-size: 11.5px;
-  color: var(--muted);
-  min-width: 108px;
-  text-align: right;
-  white-space: nowrap;
-  letter-spacing: .5px;
-}
-.vol-row { display: flex; align-items: center; gap: 12px; }
-.vol-row span { font-size: 13px; color: var(--muted); white-space: nowrap; }
-.vol-lbl {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 12px;
-  color: var(--bluelit);
-  min-width: 40px;
-  font-weight: 700;
-}
+.prog-row, .vol-row { display: flex; align-items: center; gap: 12px; }
+.time-lbl, .vol-lbl, .vol-row span { font-family: 'Exo 2', monospace; font-size: 12px; color: var(--muted); min-width: 100px; text-align: right; }
+input[type=range] { flex: 1; -webkit-appearance: none; height: 5px; background: rgba(59,130,246,.12); border-radius: 3px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--blue); border-radius: 50%; }
 
-/* ═══════════════════════════════════════════════
-   RANGE INPUTS
-═══════════════════════════════════════════════ */
-input[type=range] {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 5px;
-  background: rgba(59,130,246,.12);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  outline: none;
-  cursor: pointer;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px; height: 18px;
-  background: linear-gradient(140deg, var(--bluelit), var(--blue));
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,.65);
-  box-shadow: 0 0 10px rgba(59,130,246,.7), 0 2px 6px rgba(0,0,0,.4);
-  cursor: pointer;
-  transition: transform .1s;
-}
-input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
-input[type=range]::-moz-range-thumb {
-  width: 18px; height: 18px;
-  background: linear-gradient(140deg, var(--bluelit), var(--blue));
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,.65);
-  cursor: pointer;
-}
-
-/* ═══════════════════════════════════════════════
-   BUTTONS
-═══════════════════════════════════════════════ */
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .btn {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(59,130,246,.65) 0%, rgba(29,78,216,.75) 100%);
-  color: #fff;
-  border: 1px solid rgba(147,197,253,.25);
-  border-radius: 12px;
-  padding: 11px 18px;
-  cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
-  font-weight: 600;
-  font-size: 13px;
-  transition: all .22s;
-  flex: 1;
-  min-width: 110px;
-  letter-spacing: .1px;
+  background: rgba(59,130,246,.1); color: var(--white); border: 1px solid rgba(147,197,253,.25);
+  border-radius: 8px; padding: 11px 18px; cursor: pointer; font-family: 'DM Sans', monospace;
+  font-weight: 600; font-size: 13px; transition: all .2s; flex: 1; min-width: 100px;
 }
-.btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,.12) 0%, transparent 55%);
-  opacity: 0;
-  transition: opacity .2s;
-}
-.btn:hover { box-shadow: var(--glow-sm); transform: translateY(-1px); border-color: rgba(147,197,253,.45); }
-.btn:hover::after { opacity: 1; }
-.btn:active { transform: scale(.97) translateY(0); box-shadow: none; }
-#btn-mini {
-  background: linear-gradient(135deg, rgba(34,211,238,.1) 0%, rgba(59,130,246,.16) 100%);
-  border-color: rgba(34,211,238,.25);
-  font-size: 12px;
-  margin-top: 4px;
-}
-#btn-mini:hover { border-color: rgba(34,211,238,.5); box-shadow: 0 0 12px rgba(34,211,238,.25); }
+.btn:hover { background: rgba(59,130,246,.3); border-color: var(--blue); }
 
 /* ═══════════════════════════════════════════════
-   SECTION LABEL
+   LISTS & QUEUE
 ═══════════════════════════════════════════════ */
-.sec-lbl {
-  font-size: 10.5px;
-  color: var(--muted);
-  font-weight: 600;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  padding: 4px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.sec-lbl::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--border), transparent);
-}
+.queue-wrap, .pgrid { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.queue-wrap { max-height: 250px; }
+.pgrid { max-height: 540px; }
 
-/* ═══════════════════════════════════════════════
-   QUEUE
-═══════════════════════════════════════════════ */
-.queue-wrap {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 210px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-right: 3px;
-}
-.queue-wrap::-webkit-scrollbar { width: 3px; }
-.queue-wrap::-webkit-scrollbar-track { background: transparent; }
-.queue-wrap::-webkit-scrollbar-thumb { background: rgba(59,130,246,.35); border-radius: 2px; }
 .qitem {
-  background: rgba(59,130,246,.08);
-  border: 1px solid rgba(59,130,246,.12);
-  border-radius: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: all .15s;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(232,240,255,.7);
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 8px;
+  padding: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;
 }
-.qitem:hover {
-  background: rgba(59,130,246,.18);
-  border-color: rgba(59,130,246,.35);
-  color: var(--white);
+.qitem.now { border-color: var(--blue); background: rgba(59,130,246,.1); }
+.qitem .qname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-btn { 
+  background: transparent; color: var(--cyan); border: 1px solid var(--cyan); 
+  border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; font-family: monospace;
 }
-.qitem.now {
-  background: linear-gradient(135deg, rgba(59,130,246,.28), rgba(29,78,216,.2));
-  border-color: rgba(147,197,253,.4);
-  box-shadow: 0 0 12px rgba(59,130,246,.18);
-  color: var(--white);
-  font-weight: 500;
-}
-.qitem .qname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qitem .qcnt { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.dl-btn:disabled { color: var(--muted); border-color: var(--muted); cursor: default; }
 
 /* ═══════════════════════════════════════════════
-   EQ PANEL
+   CANVAS
 ═══════════════════════════════════════════════ */
-.eq-canvas-box {
-  background: rgba(0,0,0,.35);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px;
-}
-#eq-canvas { width: 100%; height: 155px; display: block; }
-.eq-row { display: flex; gap: 10px; justify-content: space-around; padding: 8px 0; }
-.eq-band { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
-.eq-band .eqlbl { font-size: 10px; color: var(--muted); font-family: 'Exo 2', sans-serif; }
-.eq-band .dbval { font-size: 11px; color: var(--cyan); font-family: 'Exo 2', sans-serif; font-weight: 700; min-height: 16px; }
-.sl-vert-wrap { height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.sl-vert {
-  width: 100px; height: 28px;
-  transform: rotate(-90deg) translateX(-36px);
-  transform-origin: left center;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  background: rgba(59,130,246,.12);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
-.sl-vert::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px; height: 16px;
-  background: linear-gradient(135deg, var(--bluelit), var(--blue));
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 6px rgba(59,130,246,.6);
-}
-.sl-vert::-moz-range-thumb { width: 16px; height: 16px; background: var(--blue); border-radius: 50%; border: 2px solid #fff; }
-
-/* ═══════════════════════════════════════════════
-   SPECTRUM
-═══════════════════════════════════════════════ */
-.spec-toggle { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
-.spec-toggle input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; }
-#spec-canvas {
-  width: 100%; height: 210px; display: block;
-  background: rgba(0,0,0,.3);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-/* ═══════════════════════════════════════════════
-   PLAYLIST GRID
-═══════════════════════════════════════════════ */
-.pgrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-  gap: 10px;
-  overflow-y: auto;
-  max-height: 540px;
-  padding-right: 4px;
-}
-.pgrid::-webkit-scrollbar { width: 3px; }
-.pgrid::-webkit-scrollbar-track { background: transparent; }
-.pgrid::-webkit-scrollbar-thumb { background: rgba(59,130,246,.35); border-radius: 2px; }
-.scard {
-  background: rgba(59,130,246,.09);
-  border: 1px solid rgba(59,130,246,.13);
-  border-radius: 12px;
-  padding: 14px 10px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  min-height: 100px;
-  justify-content: center;
-}
-.scard:hover {
-  background: rgba(59,130,246,.2);
-  border-color: rgba(147,197,253,.35);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0,0,0,.4), 0 0 14px rgba(59,130,246,.14);
-}
-.scard.now {
-  background: linear-gradient(135deg, rgba(59,130,246,.28), rgba(29,78,216,.2));
-  border-color: rgba(147,197,253,.45);
-  box-shadow: 0 0 18px rgba(59,130,246,.22);
-}
-.scard .cico { font-size: 24px; }
-.scard .cname {
-  font-size: 11.5px; font-weight: 600;
-  line-height: 1.3; word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  color: rgba(232,240,255,.88);
-}
-.scard .ccnt { font-size: 11px; color: var(--muted); }
-
-/* ═══════════════════════════════════════════════
-   LOADER
-═══════════════════════════════════════════════ */
-#loader {
-  position: fixed; inset: 0;
-  background: rgba(6,10,20,.98);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 20px; z-index: 999;
-}
-.spin {
-  width: 42px; height: 42px;
-  border: 2px solid rgba(59,130,246,.12);
-  border-top-color: var(--blue);
-  border-right-color: var(--cyan);
-  border-radius: 50%;
-  animation: spin .7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.load-txt {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 1rem; color: var(--muted);
-  letter-spacing: 2px;
-}
-
-/* ═══════════════════════════════════════════════
-   SCROLLBAR GLOBAL
-═══════════════════════════════════════════════ */
-* { scrollbar-width: thin; scrollbar-color: rgba(59,130,246,.3) transparent; }
-
-/* ═══════════════════════════════════════════════
-   ██████ SCREENSAVER ██████
-═══════════════════════════════════════════════ */
-#screensaver {
-  position: fixed; inset: 0;
-  background: #000;
-  z-index: 10000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 1.4s ease;
-  cursor: pointer;
-  overflow: hidden;
-  user-select: none;
-}
-#screensaver.ss-active {
-  opacity: 1;
-  pointer-events: all;
-}
-/* Floating notes */
-.ss-note {
-  position: absolute;
-  font-size: 20px;
-  opacity: 0;
-  pointer-events: none;
-  animation: ssNoteFloat 9s ease-in-out infinite;
-  filter: blur(.4px);
-}
-@keyframes ssNoteFloat {
-  0%          { opacity: 0;   transform: translateY(10px) rotate(-5deg); }
-  12%         { opacity: .22; }
-  80%         { opacity: .08; }
-  100%        { opacity: 0;   transform: translateY(-130px) rotate(18deg); }
-}
-/* Central ring group */
-.ss-rings {
-  position: relative;
-  width: 110px; height: 110px;
-  display: flex; align-items: center; justify-content: center;
-}
-.ss-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(59,130,246,.2);
-  animation: ssRingBreathe 3.5s ease-in-out infinite;
-}
-.ss-ring:nth-child(1) { inset: 0;     animation-delay: 0s; }
-.ss-ring:nth-child(2) { inset: 12px;  animation-delay: .35s;  border-color: rgba(59,130,246,.32); }
-.ss-ring:nth-child(3) { inset: 24px;  animation-delay: .7s;   border-color: rgba(59,130,246,.48); }
-@keyframes ssRingBreathe {
-  0%, 100% { transform: scale(1);    opacity: .5; }
-  50%       { transform: scale(1.07); opacity: 1; }
-}
-.ss-core {
-  position: absolute;
-  inset: 36px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(59,130,246,.55) 0%, rgba(34,211,238,.2) 50%, transparent 70%);
-  animation: ssCorePulse 2.2s ease-in-out infinite;
-}
-@keyframes ssCorePulse {
-  0%, 100% { transform: scale(.85); opacity: .4; }
-  50%       { transform: scale(1.15); opacity: .9; }
-}
-/* Song name */
-.ss-body {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 22px;
-  text-align: center; padding: 0 28px;
-  margin-top: 6px;
-}
-.ss-label {
-  font-size: 10px;
-  color: rgba(255,255,255,.2);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  font-family: 'Exo 2', sans-serif;
-  animation: ssBlink 4s ease-in-out infinite;
-}
-@keyframes ssBlink {
-  0%, 100% { opacity: .2; }
-  50%       { opacity: .5; }
-}
-.ss-song {
-  font-family: 'Exo 2', sans-serif;
-  font-size: 1.12rem;
-  font-weight: 600;
-  color: rgba(147,197,253,.65);
-  letter-spacing: .8px;
-  line-height: 1.45;
-  max-width: 300px;
-  animation: ssSongFloat 4.5s ease-in-out infinite;
-}
-@keyframes ssSongFloat {
-  0%, 100% { transform: translateY(0);   opacity: .65; }
-  50%       { transform: translateY(-7px); opacity: 1; }
-}
-.ss-hint {
-  font-size: 10px;
-  color: rgba(255,255,255,.12);
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  margin-top: 24px;
-  animation: ssBlink 3s ease-in-out infinite 1s;
-}
-/* ═══════════════════════════════════════════════
-   RESPONSIVE
-═══════════════════════════════════════════════ */
-@media(max-width:600px) {
-  .tabbar { flex-wrap: wrap; }
-  .tabbar button { flex: 1; min-width: 72px; padding: 8px 6px; font-size: 11.5px; }
-  .btn { min-width: 76px; padding: 9px 10px; font-size: 12px; }
-  .song-title { font-size: 1.15rem; }
-  .pgrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
-  .eq-row { gap: 4px; }
-  .sl-vert { width: 90px; }
-  .hdr h1 { font-size: 1.5rem; }
-}
+canvas { width: 100%; background: #000; border-radius: 8px; border: 1px solid var(--border); }
+#loader { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; color: var(--white); font-family: monospace;}
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════
-     SCREENSAVER OVERLAY
-════════════════════════════════════════ -->
-<div id="screensaver">
-  <div class="ss-scanline"></div>
+<div id="loader">ĐANG TẢI DỮ LIỆU...</div>
 
-  <!-- Central animation -->
-  <div class="ss-rings">
-    <div class="ss-ring"></div>
-    <div class="ss-ring"></div>
-    <div class="ss-ring"></div>
-    <div class="ss-core"></div>
-  </div>
-  <!-- Info text -->
-  <div class="ss-body">
-    <div class="ss-label">Đang phát</div>
-    <div class="ss-song" id="ss-song-name">Chưa phát bài nào</div>
-    <div class="ss-hint">Chạm màn hình để tiếp tục</div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════════
-     LOADING SCREEN
-════════════════════════════════════════ -->
-<div id="loader">
-  <div class="spin"></div>
-  <div class="load-txt" id="load-msg">ĐANG TẢI DỮ LIỆU TỪ SHEET...</div>
-</div>
-
-<!-- ════════════════════════════════════════
-     MAIN APP
-════════════════════════════════════════ -->
 <div id="app">
   <div class="hdr">
-    <h1>🎵 SMUSIC PLAYER</h1>
-    <div class="sub" id="statusbar">Đang khởi động kết nối Cloud...</div>
+    <h1>SMUSIC PLAYER</h1>
+    <div class="sub" id="statusbar">Sẵn sàng</div>
   </div>
 
   <div class="panel">
     <div class="tabbar">
-      <button class="active" data-tab="control">Điều khiển</button>
-      <button data-tab="eq">EQ </button>
+      <button class="active" data-tab="control">Control</button>
+      <button data-tab="eq">EQ</button>
       <button data-tab="spectrum">Spectrum</button>
-      <button data-tab="playlist">Toàn bộ phát nhạc</button>
+      <button data-tab="playlist">Playlist</button>
     </div>
 
-    <!-- TAB: CONTROL -->
     <div id="tab-control" class="tab on">
-      <div class="song-title" id="song-title" onclick="toggleMiniPlayerUI()">Chưa chọn bài hát</div>
+      <div class="song-title" id="song-title">Chưa chọn bài hát</div>
       <div class="prog-row">
         <input type="range" id="progress" min="0" max="1000" value="0">
         <span class="time-lbl" id="time-lbl">00:00 / 00:00</span>
       </div>
       <div class="vol-row">
-        <span>🔊 Âm lượng:</span>
+        <span>Volume:</span>
         <input type="range" id="vol-sl" min="0" max="100" value="100">
         <span class="vol-lbl" id="vol-lbl">100%</span>
       </div>
       <div class="btn-row">
-        <button class="btn" id="btn-mode"  onclick="toggleMode()">Chế độ: Ngẫu nhiên</button>
-        <button class="btn"               onclick="prevTrackBtn()">⏮ Prev</button>
-        <button class="btn" id="btn-play"  onclick="togglePlay()">▶ Play</button>
-        <button class="btn"               onclick="nextTrackBtn()">⏭ Next</button>
+        <button class="btn" id="btn-mode" onclick="toggleMode()">[ Ngẫu nhiên ]</button>
+        <button class="btn" onclick="prevTrackBtn()">[ << ]</button>
+        <button class="btn" id="btn-play" onclick="togglePlay()">[ Phát ]</button>
+        <button class="btn" onclick="nextTrackBtn()">[ >> ]</button>
+        <button class="btn" onclick="togglePiP()">[ PiP Mode ]</button>
       </div>
-      <div class="sec-lbl">🎵 Hàng đợi phát hiện tại</div>
+      <div class="sec-lbl" style="font-family: monospace; color: var(--muted);">--- DANH SÁCH PHÁT ---</div>
       <div class="queue-wrap" id="queue-wrap"></div>
     </div>
 
-    <!-- TAB: EQ -->
     <div id="tab-eq" class="tab">
-      <div class="eq-canvas-box"><canvas id="eq-canvas" height="155"></canvas></div>
-      <div class="eq-row" id="eq-row"></div>
+      <canvas id="eq-canvas" height="155"></canvas>
+      <div style="text-align:center; font-family:monospace; color:var(--muted); margin-top: 10px;">EQ Setting is internal.</div>
     </div>
 
-    <!-- TAB: SPECTRUM -->
     <div id="tab-spectrum" class="tab">
-      <label class="spec-toggle">
-        <input type="checkbox" id="spec-chk" checked onchange="toggleSpectrum(this.checked)">
-        <span>Spectrum</span>
-      </label>
       <canvas id="spec-canvas" height="210"></canvas>
+      <video id="pip-video" muted playsinline style="display:none;"></video>
     </div>
 
-    <!-- TAB: PLAYLIST -->
     <div id="tab-playlist" class="tab">
       <div class="pgrid" id="pgrid"></div>
     </div>
@@ -701,77 +166,6 @@ input[type=range]::-moz-range-thumb {
 
 <audio id="aud" crossorigin="anonymous" preload="none"></audio>
 <audio id="cache-aud" preload="auto" style="display:none;"></audio>
-
-<!-- ════════════════════════════════════════
-     SCREENSAVER LOGIC
-════════════════════════════════════════ -->
-<script>
-(function () {
-  const IDLE_DELAY = 55000; // 55 seconds without interaction → screensaver
-  const ss        = document.getElementById('screensaver');
-  const ssSong    = document.getElementById('ss-song-name');
-  const songTitle = document.getElementById('song-title');
-  let   timer     = null;
-  let   active    = false;
-
-  /* ── helpers ──────────────────────────────── */
-  function currentSongName() {
-    // textContent strips HTML tags, gives clean song name
-    return songTitle.textContent.trim() || 'Đang phát nhạc...';
-  }
-
-  function showScreensaver() {
-    if (active) return;
-    active = true;
-    ssSong.textContent = currentSongName();
-    ss.classList.add('ss-active');
-  }
-
-  function hideScreensaver() {
-    if (!active) return;
-    active = false;
-    ss.classList.remove('ss-active');
-    resetTimer(); // restart idle countdown
-  }
-
-  function resetTimer() {
-    if (active) return; // don't reset while screensaver is showing
-    clearTimeout(timer);
-    timer = setTimeout(showScreensaver, IDLE_DELAY);
-  }
-
-  /* ── dismiss on tap / click ───────────────── */
-  ss.addEventListener('touchend', function (e) {
-    e.preventDefault();  // stops ghost click on elements below
-    e.stopPropagation();
-    hideScreensaver();
-  });
-  ss.addEventListener('click', function (e) {
-    e.stopPropagation();
-    hideScreensaver();
-  });
-
-  /* ── user-activity events reset idle timer ── */
-  ['mousemove','mousedown','touchstart','keydown','scroll','wheel'].forEach(ev => {
-    document.addEventListener(ev, function () {
-      if (!active) resetTimer();
-    }, { passive: true });
-  });
-
-  /* ── keep song name updated if track changes
-        while screensaver is showing ──────────── */
-  new MutationObserver(function () {
-    if (active) ssSong.textContent = currentSongName();
-  }).observe(songTitle, { childList: true, subtree: true, characterData: true });
-
-  /* ── expose dismiss globally (optional hook) */
-  window.dismissScreensaver = hideScreensaver;
-
-  /* ── kick off idle timer after page loads ─── */
-  window.addEventListener('load', resetTimer);
-  resetTimer();
-})();
-</script>
 
 <script src="smusijs.js"></script>
 </body>
