@@ -3,119 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>SMusic Player - Offline Edition</title>
+<title>SMusic Player - Cloud Edition</title>
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════════
-   TOKENS & RESET
+   TOKENS & RESET (Giao diện cũ)
 ═══════════════════════════════════════════════ */
 :root {
   --bg:        #060a14;
   --bg2:       #0c1220;
+  --bg3:       #101929;
   --surface:   rgba(12, 18, 32, 0.82);
   --blue:      #3b82f6;
+  --bluedark:  #1d4ed8;
   --bluelit:   #93c5fd;
   --cyan:      #22d3ee;
   --white:     #e8f0ff;
   --muted:     #46607c;
   --border:    rgba(59, 130, 246, 0.14);
-  --glow-sm:   0 0 10px rgba(59,130,246,.45);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--white); font-family: 'DM Sans', sans-serif; }
-body {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 16px;
-  min-height: 100vh;
-  touch-action: pan-y;
-  overscroll-behavior-y: contain;
-  -webkit-tap-highlight-color: transparent;
-}
-button, .btn { touch-action: manipulation; }
+body { padding: 16px; display: flex; justify-content: center; align-items: flex-start; }
 
-/* ═══════════════════════════════════════════════
-   APP SHELL
-═══════════════════════════════════════════════ */
+/* SCREENSAVER */
+#screensaver {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999;
+  display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.5s;
+}
+#screensaver.ss-active { opacity: 1; pointer-events: auto; }
+#ss-song { font-family: 'Exo 2', sans-serif; font-size: 2rem; color: var(--cyan); text-shadow: 0 0 20px var(--cyan); }
+
+/* APP SHELL */
 #app { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 14px; }
+.hdr { text-align: center; padding: 20px 0; }
+.hdr h1 { font-family: 'Exo 2', sans-serif; font-size: 2rem; color: var(--bluelit); letter-spacing: 5px; }
 
-.hdr { text-align: center; padding: 20px 0 10px; position: relative; }
-.hdr h1 {
-  font-family: 'Exo 2', sans-serif; font-size: 2rem; font-weight: 900; letter-spacing: 5px;
-  color: var(--bluelit);
-}
-.hdr .sub { font-size: 10.5px; color: var(--muted); letter-spacing: 1.8px; margin-top: 7px; text-transform: uppercase; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
 
-.panel {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
-  overflow: hidden; box-shadow: 0 2px 40px rgba(0,0,0,.55);
-}
-
-/* ═══════════════════════════════════════════════
-   TABS & CONTROLS
-═══════════════════════════════════════════════ */
-.tabbar { display: flex; background: rgba(4, 8, 16, 0.55); padding: 10px 10px 0; gap: 3px; border-bottom: 1px solid var(--border); }
-.tabbar button {
-  background: transparent; color: var(--muted); padding: 10px 18px; border-radius: 10px 10px 0 0;
-  cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 12.5px; border: none;
-}
+/* TABS */
+.tabbar { display: flex; background: rgba(4, 8, 16, 0.55); padding: 10px 10px 0; border-bottom: 1px solid var(--border); }
+.tabbar button { background: transparent; color: var(--muted); padding: 10px 18px; border: none; cursor: pointer; border-radius: 10px 10px 0 0; }
 .tabbar button.active { color: var(--white); background: var(--surface); border: 1px solid var(--border); border-bottom: none; }
-.tab { display: none; padding: 22px; flex-direction: column; gap: 16px; min-height: 460px; }
+.tab { display: none; padding: 22px; flex-direction: column; gap: 16px; }
 .tab.on { display: flex; }
 
-.song-title {
-  text-align: center; font-family: 'Exo 2', sans-serif; font-size: 1.42rem; font-weight: 700;
-  color: var(--bluelit); min-height: 46px; word-break: break-word; padding: 8px 8px;
-}
-
-.prog-row, .vol-row { display: flex; align-items: center; gap: 12px; }
-.time-lbl, .vol-lbl, .vol-row span { font-family: 'Exo 2', monospace; font-size: 12px; color: var(--muted); min-width: 100px; text-align: right; }
-input[type=range] { flex: 1; -webkit-appearance: none; height: 5px; background: rgba(59,130,246,.12); border-radius: 3px; outline: none; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--blue); border-radius: 50%; }
-
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.btn {
-  background: rgba(59,130,246,.1); color: var(--white); border: 1px solid rgba(147,197,253,.25);
-  border-radius: 8px; padding: 11px 18px; cursor: pointer; font-family: 'DM Sans', monospace;
-  font-weight: 600; font-size: 13px; transition: all .2s; flex: 1; min-width: 100px;
-}
-.btn:hover { background: rgba(59,130,246,.3); border-color: var(--blue); }
-
-/* ═══════════════════════════════════════════════
-   LISTS & QUEUE
-═══════════════════════════════════════════════ */
-.queue-wrap, .pgrid { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
-.queue-wrap { max-height: 250px; }
-.pgrid { max-height: 540px; }
-
-.qitem {
-  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 8px;
-  padding: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer;
-}
+/* DANH SÁCH & NÚT */
+.qitem { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05); border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .qitem.now { border-color: var(--blue); background: rgba(59,130,246,.1); }
-.qitem .qname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dl-btn { 
-  background: transparent; color: var(--cyan); border: 1px solid var(--cyan); 
-  border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; font-family: monospace;
-}
+.qname { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+
+.dl-btn { background: transparent; color: var(--cyan); border: 1px solid var(--cyan); border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; position: relative; z-index: 10; }
 .dl-btn:disabled { color: var(--muted); border-color: var(--muted); cursor: default; }
 
-/* ═══════════════════════════════════════════════
-   CANVAS
-═══════════════════════════════════════════════ */
+.btn { background: rgba(59,130,246,.1); color: var(--white); border: 1px solid rgba(147,197,253,.25); border-radius: 8px; padding: 10px 15px; cursor: pointer; font-weight: 600; }
+input[type=range] { width: 100%; }
 canvas { width: 100%; background: #000; border-radius: 8px; border: 1px solid var(--border); }
-#loader { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 999; color: var(--white); font-family: monospace;}
+#eq-container { display: flex; gap: 10px; justify-content: center; }
+.eq-slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.eq-slider-wrap input[type=range] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 8px; height: 100px; }
 </style>
 </head>
 <body>
 
-<div id="loader">ĐANG TẢI DỮ LIỆU...</div>
+<div id="screensaver">
+  <div id="ss-song">Đang phát...</div>
+</div>
 
 <div id="app">
   <div class="hdr">
     <h1>SMUSIC PLAYER</h1>
-    <div class="sub" id="statusbar">Sẵn sàng</div>
+    <div id="statusbar" style="color: var(--muted); font-size: 12px; margin-top: 5px;">Sẵn sàng</div>
   </div>
 
   <div class="panel">
@@ -127,46 +85,40 @@ canvas { width: 100%; background: #000; border-radius: 8px; border: 1px solid va
     </div>
 
     <div id="tab-control" class="tab on">
-      <div class="song-title" id="song-title">Chưa chọn bài hát</div>
-      <div class="prog-row">
+      <div id="song-title" style="text-align:center; font-size: 1.2rem; color: var(--bluelit); min-height: 30px;">Chưa chọn bài hát</div>
+      <div style="display: flex; gap: 10px; align-items: center;">
         <input type="range" id="progress" min="0" max="1000" value="0">
-        <span class="time-lbl" id="time-lbl">00:00 / 00:00</span>
+        <span id="time-lbl" style="font-family: monospace; font-size: 12px;">00:00 / 00:00</span>
       </div>
-      <div class="vol-row">
-        <span>Volume:</span>
-        <input type="range" id="vol-sl" min="0" max="100" value="100">
-        <span class="vol-lbl" id="vol-lbl">100%</span>
+      <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+        <button class="btn" id="btn-mode" onclick="toggleMode()">Chế độ: Ngẫu nhiên</button>
+        <button class="btn" onclick="prevTrack()">Trở lại</button>
+        <button class="btn" id="btn-play" onclick="togglePlay()">▶ Play</button>
+        <button class="btn" onclick="nextTrack()">Tiếp theo</button>
+        <button class="btn" onclick="togglePiP()" style="border-color: var(--cyan); color: var(--cyan);">PiP Mode</button>
       </div>
-      <div class="btn-row">
-        <button class="btn" id="btn-mode" onclick="toggleMode()">[ Ngẫu nhiên ]</button>
-        <button class="btn" onclick="prevTrackBtn()">[ << ]</button>
-        <button class="btn" id="btn-play" onclick="togglePlay()">[ Phát ]</button>
-        <button class="btn" onclick="nextTrackBtn()">[ >> ]</button>
-        <button class="btn" onclick="togglePiP()">[ PiP Mode ]</button>
-      </div>
-      <div class="sec-lbl" style="font-family: monospace; color: var(--muted);">--- DANH SÁCH PHÁT ---</div>
-      <div class="queue-wrap" id="queue-wrap"></div>
+      <div id="queue-wrap" style="max-height: 250px; overflow-y: auto; margin-top: 15px;"></div>
     </div>
 
     <div id="tab-eq" class="tab">
-      <canvas id="eq-canvas" height="155"></canvas>
-      <div style="text-align:center; font-family:monospace; color:var(--muted); margin-top: 10px;">EQ Setting is internal.</div>
+      <div id="eq-container"></div>
     </div>
 
     <div id="tab-spectrum" class="tab">
-      <canvas id="spec-canvas" height="210"></canvas>
+      <label style="display:flex; align-items:center; gap: 10px; cursor: pointer;">
+        <input type="checkbox" id="spec-chk" checked> Bật/Tắt Spectrum
+      </label>
+      <canvas id="spec-canvas" height="200"></canvas>
       <video id="pip-video" muted playsinline style="display:none;"></video>
     </div>
 
     <div id="tab-playlist" class="tab">
-      <div class="pgrid" id="pgrid"></div>
+      <div id="pgrid" style="max-height: 400px; overflow-y: auto;"></div>
     </div>
   </div>
 </div>
 
 <audio id="aud" crossorigin="anonymous" preload="none"></audio>
-<audio id="cache-aud" preload="auto" style="display:none;"></audio>
-
 <script src="smusijs.js"></script>
 </body>
 </html>
